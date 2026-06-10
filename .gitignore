@@ -1,0 +1,59 @@
+# ---- Dependencies ----
+node_modules/
+**/node_modules/
+.pnp
+.pnp.js
+
+# ---- Secrets / local env (NEVER commit real secrets) ----
+.env
+.env.local
+.env.*.local
+**/.env
+**/.env.local
+**/.env.*.local
+# Keep the example files:
+!.env.example
+!**/.env.example
+
+# ---- Next.js build output ----
+.next/
+**/.next/
+out/
+build/
+dist/
+
+# ---- Server runtime artifacts ----
+server/uploads/*
+!server/uploads/.gitkeep
+
+# ---- Logs ----
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Caches / coverage ----
+.cache/
+coverage/
+.eslintcache
+*.tsbuildinfo
+next-env.d.ts
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# ---- Misc temp ----
+_smoke*.js
+_e2e*.js
+tmp/
+*.tmp
+
+# ---- Local AI dev tooling (keep out of the repo) ----
+CLAUDE.md
+.claude/
