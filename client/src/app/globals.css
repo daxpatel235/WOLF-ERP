@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #fffdf7;
+}
+
+/* Print: hide the app chrome so only the document prints */
+@media print {
+  aside,
+  header {
+    display: none !important;
+  }
+  .lg\:pl-72 {
+    padding-left: 0 !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
