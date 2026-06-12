@@ -101,6 +101,15 @@ const me = asyncHandler(async (req, res) => {
   res.json({ user: req.user.toJSON() });
 });
 
+const RESET_TTL_MS = 60 * 60 * 1000; // reset links are valid for 1 hour
+const hashToken = (raw) => crypto.createHash('sha256').update(raw).digest('hex');
+
+// Base URL the reset link points at (the frontend). Guard against CLIENT_URL
+// being '*' (a CORS wildcard, not a usable link target).
+function clientBaseUrl() {
+  return !env.CLIENT_URL || env.CLIENT_URL === '*' ? 'http://localhost:3000' : env.CLIENT_URL;
+}
+
 // POST /api/auth/forgot-password
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
@@ -108,16 +117,49 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
   // Always respond the same way so we don't leak which emails exist.
   if (user) {
-    const resetToken = crypto.randomBytes(20).toString('hex');
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    user.resetPasswordToken = hashToken(rawToken);
+    user.resetPasswordExpires = new Date(Date.now() + RESET_TTL_MS);
+    await user.save();
+
+    const link = `${clientBaseUrl()}/reset-password?token=${rawToken}`;
     await sendMail({
       to: user.email,
       subject: 'Reset your Wolf ERP password',
-      html: `<p>Use this token to reset your password: <code>${resetToken}</code></p>
-             <p>If you didn't request this, you can ignore this email.</p>`,
+      html: `<p>Hi ${user.name || 'there'},</p>
+             <p>We received a request to reset your Wolf ERP password. Click the link below to choose a new one — it expires in 1 hour:</p>
+             <p><a href="${link}">Reset my password</a></p>
+             <p>Or paste this URL into your browser:<br><code>${link}</code></p>
+             <p>If you didn't request this, you can safely ignore this email.</p>`,
     });
   }
 
   res.json({ message: 'If that email is registered, a reset link is on its way.' });
 });
 
-module.exports = { register, login, me, forgotPassword };
+// POST /api/auth/reset-password
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token, password } = req.body;
+
+  // Look the user up by the hashed token and ensure it hasn't expired.
+  const user = await User.findOne({
+    resetPasswordToken: hashToken(String(token || '')),
+    resetPasswordExpires: { $gt: new Date() },
+  }).select('+resetPasswordToken +resetPasswordExpires');
+
+  if (!user) {
+    return res.status(400).json({ message: 'This reset link is invalid or has expired. Please request a new one.' });
+  }
+
+  // Set the new password (the pre-save hook hashes it) and burn the token.
+  user.password = password;
+  user.resetPasswordToken = null;
+  user.resetPasswordExpires = null;
+  await user.save();
+
+  // Log them straight in so they don't have to re-enter the new password.
+  const authToken = signToken(user);
+  res.json({ message: 'Your password has been reset.', token: authToken, user: user.toJSON() });
+});
+
+module.exports = { register, login, me, forgotPassword, resetPassword };

@@ -25,6 +25,10 @@ const userSchema = new mongoose.Schema(
     // Successful sign-ins. 0 = brand-new account; drives the first-login demo
     // welcome notice.
     loginCount: { type: Number, default: 0 },
+    // Password reset: we store only a SHA-256 hash of the emailed token plus its
+    // expiry, never the raw token. Both cleared once the password is reset.
+    resetPasswordToken: { type: String, default: null, select: false },
+    resetPasswordExpires: { type: Date, default: null, select: false },
   },
   baseOptions({ hidePassword: true })
 );

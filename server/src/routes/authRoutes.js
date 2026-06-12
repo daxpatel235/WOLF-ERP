@@ -26,4 +26,13 @@ router.post(
 router.get('/me', protect, ctrl.me);
 router.post('/forgot-password', ctrl.forgotPassword);
 
+router.post(
+  '/reset-password',
+  validate({
+    token: [[isNonEmpty, 'Reset token is required.']],
+    password: [[(v) => isNonEmpty(v) && String(v).length >= 6, 'Password must be at least 6 characters.']],
+  }),
+  ctrl.resetPassword
+);
+
 module.exports = router;

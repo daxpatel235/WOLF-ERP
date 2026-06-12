@@ -85,6 +85,8 @@ export const authApi = {
   me: () => request("/auth/me"),
   forgotPassword: (email) =>
     request("/auth/forgot-password", { method: "POST", body: { email }, auth: false }),
+  resetPassword: (token, password) =>
+    request("/auth/reset-password", { method: "POST", body: { token, password }, auth: false }),
 };
 
 export const vendorsApi = {
