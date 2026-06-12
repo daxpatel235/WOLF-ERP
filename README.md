@@ -1,14 +1,25 @@
-# Wolf ERP — Procurement & Vendor Management System
+# Wolf ERP — AI-Powered Procurement & Vendor Management
 
-A **full-stack, production-ready Procurement & Vendor Management ERP** built for modern organizations. Streamline your procurement workflows with centralized vendor management, RFQ creation, quotation comparison, approval automation, purchase orders, and invoice generation—all in one connected platform.
+A full-stack **Procurement & Vendor Management ERP** that digitises the entire source-to-pay lifecycle — vendors, RFQs, quotations, approvals, purchase orders, and invoices — in one connected platform, with **Google Gemini** powering assistive drafting, analytics, and a retrieval-grounded (RAG) chat assistant.
+
+---
+
+## 🌐 Live Demo
+
+| | URL |
+|---|---|
+| **App (frontend)** | **https://wolf-erp.vercel.app** |
+| **API (backend)** | https://wolf-erp-api.onrender.com |
+
+> **Getting in:** the live database starts empty, so open the app and **Create an account** to begin. (On a local install the backend auto-seeds demo logins — see [Local Development](#-local-development).)
+>
+> ℹ️ This is a **demo** deployment. Data you add is for demonstration only and is automatically cleared after **30 days of inactivity** (your login is always kept). The backend runs on a free tier, so the very first request after it's been idle may take ~30–50s to wake up.
 
 ---
 
 ## 🎯 Overview
 
-Wolf ERP digitizes and automates the entire procurement lifecycle. Instead of fragmented emails and spreadsheets, organizations get a **unified platform** where vendors, RFQs, quotations, approvals, purchase orders, and invoices are seamlessly connected—decisions in one module automatically flow through the others.
-
-### The Connected Workflow
+Instead of fragmented emails and spreadsheets, Wolf ERP gives organisations a unified platform where every procurement decision flows automatically into the next module.
 
 ```
 Vendor Registration
@@ -32,512 +43,170 @@ Payment & Reporting
 
 ## ✨ Key Features
 
-### 1. **Vendor Management**
-- Register and manage vendors with categories, GST/tax details, and contact information
-- Track vendor performance via ratings and spending analytics
-- Status tracking (Active, Inactive, Pending, Blocked)
-- Search and filter across vendor network
+### Core Procurement
+- **Vendor Management** — categories, GST/tax details, contacts, ratings, spend tracking, and status (Active / Pending / Inactive).
+- **RFQs** — structured requests with items, quantities, deadlines, and multi-vendor invitations.
+- **Quotations** — vendor pricing & delivery responses with **side-by-side comparison** and lowest-price highlighting, award/reject in one click.
+- **Approval Engine** — idempotent state machine routing POs, invoices, and RFQs through role-based approvers with a full audit trail.
+- **Purchase Orders** — auto-drafted from awarded quotations, sequential numbering, status flow Draft → Pending → Approved → Sent → Received.
+- **Invoices** — generated from POs with automatic tax math, status tracking, and **PDF download / print / email**.
+- **Reports & Analytics** — spend KPIs, spend-by-category, top vendors, and activity trends.
 
-### 2. **RFQ (Request for Quotation)**
-- Create structured RFQs with product/service details, quantities, and deadlines
-- Invite multiple vendors simultaneously
-- Attachment support for specifications
-- Real-time RFQ status tracking (Draft, Published, Awarded, Cancelled)
+### AI Features (Google Gemini)
+All AI runs through `POST /api/ai/*` and degrades gracefully (the app works fully even with no API key).
 
-### 3. **Quotation Management**
-- Vendors submit pricing and delivery timelines
-- Editable quotations with comments/notes
-- **Side-by-side quotation comparison** with automatic lowest-price highlighting
-- Award and reject decisions with single click
+- **Assistive Drafting & Extraction** — describe a need in plain English to auto-generate a structured RFQ; upload a vendor invoice (PDF/image) to auto-extract its fields.
+- **Analytical Insights** — award justifications, executive report summaries, vendor risk scoring, and invoice 3-way-match audits.
+- **Wolf AI Chat (RAG)** — a floating assistant that answers questions grounded in *your own* data (vendors, RFQs, quotes, POs, invoices) via Gemini embeddings → MongoDB vector search, with source chips that deep-link to records, scope-guarding, and per-user rate limiting.
 
-### 4. **Approval Workflow Engine**
-- Multi-step approval process for POs, invoices, and RFQs
-- Role-based approval routing (Manager, Approver, Admin)
-- Priority-based pending queue
-- Approval comments and audit trail
-- Automatic status transitions when approved/rejected
-
-### 5. **Purchase Order Generation**
-- Auto-drafted POs from awarded quotations
-- Auto-generated PO numbers with sequential tracking
-- Status workflow: Draft → Pending Approval → Approved → Sent → Received
-- Send to vendor with notification
-
-### 6. **Invoice Management**
-- Create invoices from purchase orders
-- Automatic tax and amount calculations
-- Status tracking: Draft, Sent, Partially Paid, Paid, Overdue
-- **Download as PDF**, print, or email directly to vendor
-- Payment and reconciliation tracking
-
-### 7. **Reports & Analytics**
-- **Procurement KPIs**: Total spend, outstanding amounts, active vendors
-- **Spend by category** visualization with bar/pie charts
-- **Top vendors by spend** ranking
-- **Monthly procurement trends** analysis
-- Export reports as PDF or CSV
-- Real-time dashboard with live metrics
-
-### 8. **Role-Based Access Control**
-- **Admin**: Full system access, user/vendor management, analytics
-- **Procurement Officer**: Create RFQs, compare quotations, generate POs/invoices
-- **Manager/Approver**: Approve/reject procurement requests
-- **Vendor**: Submit quotations, track RFQ status, view purchase orders
-- **Buyer**: View dashboard, create RFQs, limited invoice access
-
-### 9. **Activity Logs & Notifications**
-- Complete audit trail of all procurement activities
-- Real-time notifications for approvals and status changes
-- Activity timeline with actor, action, entity, and timestamp
-- Email notifications for RFQs, approvals, and invoice updates
-
-### 10. **AI-Powered Features (Gemini)**
-
-Wolf ERP ships three tiers of AI built on Google Gemini — all requests go through `POST /api/ai/*`.
-
-#### 🤖 AI Feature 1 — Assistive Drafting & Document Extraction
-- **RFQ Auto-Draft**: describe a procurement need in plain English; AI generates a structured RFQ (items, quantities, specs)
-- **Invoice / Document Extraction**: upload a PDF or image of a vendor invoice and AI extracts fields (vendor, amounts, line items, dates) automatically
-- Eliminates manual data entry at the point of creation
-
-#### 📊 AI Feature 2 — Analytical Insights
-- **Quotation Award Insight**: after comparison, AI explains *why* a vendor should be awarded — price, delivery, risk — as a one-paragraph justification
-- **Report Executive Summary**: AI summarizes the spend/KPI report into a concise narrative for management
-- **Vendor Risk Scoring**: AI scores each vendor (0–100) across reliability, pricing consistency, and delivery history
-- **Invoice 3-Way Match Audit**: AI cross-checks invoice vs. PO vs. GRN and flags discrepancies before payment
-
-#### 💬 AI Feature 3 — Wolf AI Chat (RAG)
-- Floating violet chat widget available across every dashboard page
-- Answers natural-language questions grounded in **your organisation's own data** (vendors, RFQs, quotes, POs, invoices) — not generic knowledge
-- Retrieval pipeline: Gemini embeddings → MongoDB vector store → context-augmented answer
-- Includes source chips that deep-link directly to the referenced record
-- Scope-guarded (off-topic questions are refused before any generation call) with per-user rate limiting
-- Chat history persists across page navigations within the session
-
-### 11. **Authentication & Security**
-- JWT-based stateless authentication
-- Password hashing with bcrypt
-- Session management with token expiry
-- Email verification for password reset
-- Input validation and sanitization
-- CORS protection
+### Accounts & Demo-Data Lifecycle
+- **Role-based access** — Admin, Manager, Approver, Buyer, Vendor.
+- **JWT auth** — bcrypt-hashed passwords; "Remember me" keeps a session for up to **15 days**, after which the token expires and you return to the landing page.
+- **Dormancy reset** — if nobody signs in for **30 days**, every collection *except user logins* is wiped, keeping the free database lean. A first-time login shows a welcome notice; a return after a reset shows a friendly "your data was cleared" explainer.
 
 ---
 
-## 🛠 Technology Stack
+## 🛠 Tech Stack
 
-### **Frontend**
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Framework** | Next.js 15 (App Router) | Modern React framework with built-in routing and SSR |
-| **UI Library** | React 18 | Component-based UI with hooks |
-| **Styling** | Tailwind CSS 3.4 | Utility-first CSS for responsive, accessible design |
-| **Icons** | Lucide React | Lightweight, customizable icon library |
-| **PDF Export** | jsPDF + html2canvas | Client-side PDF generation for invoices/reports |
-| **State Management** | React Context API | Lightweight auth state and session management |
-| **HTTP Client** | Fetch API | Native browser API with custom wrapper |
-| **Package Manager** | npm | Dependency management |
+**Frontend** — Next.js 15.5 (App Router), React 18, Tailwind CSS 3.4, Lucide icons, jsPDF + html2canvas for client-side PDFs. Deployed on **Vercel**.
 
-**Frontend Structure:**
-```
-client/src/
-  app/          → Next.js App Router pages (auth, dashboard, marketing)
-  components/   → Reusable UI components (modals, forms, tables, cards)
-  context/      → AuthContext for JWT token and user session
-  hooks/        → Custom hooks (useAuth, useFetch, useVendors)
-  lib/          → API client, utilities, formatters, constants
-  styles/       → Global CSS and design tokens
-```
+**Backend** — Node.js + Express 4, MongoDB via Mongoose 8, JWT + bcryptjs, Nodemailer (SMTP), Puppeteer for server-side PDFs, and `@google/genai` (Gemini 2.5 Flash + `gemini-embedding-001`, 768-dim). Deployed on **Render**.
 
-### **Backend**
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Runtime** | Node.js 18+ | JavaScript runtime for server-side logic |
-| **Framework** | Express.js 4.19 | Minimalist web framework for REST API |
-| **Database** | MongoDB 8.3 (Mongoose ODM) | NoSQL document database with schema validation |
-| **Authentication** | JWT + bcryptjs | Secure token-based auth with password hashing |
-| **Validation** | Custom validators | Schema-based request validation |
-| **Email** | Nodemailer 6.9 | SMTP integration for transactional emails |
-| **PDF Generation** | Puppeteer 22 | Headless browser for server-side PDF rendering |
-| **Logging** | Winston/Console | Structured logging with timestamps |
-| **Environment Config** | dotenv | Environment variable management |
-| **CORS** | cors middleware | Cross-origin request handling |
-| **Package Manager** | npm | Dependency management |
-| **AI Provider** | Google Gemini (`@google/genai`) | Gemini 2.5 Flash for generation; `gemini-embedding-001` (768-dim) for RAG vector search |
-
-**Backend Architecture (MVC Pattern):**
-```
-server/src/
-  app.js                    → Express app initialization and middleware setup
-  config/                   → Database, email, environment configuration
-  models/                   → Mongoose schemas (User, Vendor, RFQ, Quotation, etc.)
-  controllers/              → Business logic for each module (auth, vendors, RFQs, etc.)
-  routes/                   → REST API endpoint definitions
-  middleware/               → JWT auth, role-based access, validation, error handling
-  services/                 → Complex business logic (approval engine, comparison, PDF, email, aiService, embeddingService, ragService)
-  utils/                    → Helpers (ID generation, logging, validators)
-  templates/                → HTML templates for emails and PDFs
-  seed.js                   → Demo data generator for testing
-```
-
-### **Database Schema**
-
-**Core Collections:**
-- **Users**: Authentication, role management, session tracking
-- **Vendors**: Vendor profiles, categories, ratings, spending
-- **RFQs**: Request for quotations with details, deadlines, status
-- **Quotations**: Vendor responses with pricing and delivery terms
-- **PurchaseOrders**: Official orders with amounts, delivery, approval status
-- **Invoices**: Billing documents with tax, payment status
-- **Approvals**: Approval tasks linked to POs, invoices, RFQs
-- **ActivityLog**: Complete audit trail of all system events
-
-**Relationships:**
-```
-RFQ ←→ Quotation ←→ PurchaseOrder ←→ Invoice
-  ↓         ↓            ↓              ↓
-Vendor   Vendor    Vendor/Approver  Vendor
-```
-
-### **DevOps & Deployment**
-| Tool | Purpose |
-|------|---------|
-| **Docker** | Containerization (optional, `docker-compose.yml` included) |
-| **Environment Variables** | `.env.example` templates for all configs |
-| **Port Configuration** | Backend :5000, Frontend :3000 (configurable) |
-| **Database Fallback** | In-memory MongoDB for development (no local DB required) |
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-- **Node.js 18+** (check: `node --version`)
-- **npm** (comes with Node.js)
-- **MongoDB** (optional; in-memory fallback available for development)
-
-### 1️⃣ Clone & Install
-
-```bash
-git clone https://github.com/daxpatel235/procurement-ERP.git
-cd procurement-ERP
-```
-
-### 2️⃣ Backend Setup (Terminal 1)
-
-```bash
-cd server
-npm install
-npm run dev      # Starts API on http://localhost:5000
-```
-
-The backend automatically:
-- Falls back to in-memory MongoDB if real MongoDB isn't running
-- Seeds demo data on first boot
-- Logs seed status to console
-
-### 3️⃣ Frontend Setup (Terminal 2)
-
-```bash
-cd client
-npm install
-npm run dev      # Starts app on http://localhost:3000
-```
-
-### 4️⃣ Open & Login
-
-Open **http://localhost:3000** in your browser.
-
-### Demo Accounts
-
-| Email | Password | Role | Permissions |
-|-------|----------|------|-------------|
-| `admin@wolferp.in` | `admin123` | Admin | Full system access, user management, analytics |
-| `manager@wolferp.in` | `manager123` | Manager | Approve/reject POs, monitor workflows |
-| `approver@wolferp.in` | `approver123` | Approver | Approve invoices and RFQs |
-| (Register your own) | (Your password) | Buyer | Create RFQs, view dashboard |
-
----
-
-## 🎯 Complete End-to-End Flow
-
-1. **Admin** registers vendors via **Vendors** screen (e.g., E2E Test Supplies)
-2. **Procurement Officer** creates an **RFQ** with product specs, quantity, and invites vendors
-3. **Vendors** receive invitations, submit **Quotations** with pricing and delivery terms
-4. **Procurement Officer** **compares quotations** side-by-side, awards to best vendor
-   - System auto-creates a **draft Purchase Order**
-5. **Procurement Officer** submits PO for approval
-6. **Manager/Approver** approves PO (status: Draft → Approved)
-7. **Procurement Officer** sends PO to vendor
-8. **Procurement Officer** creates **Invoice** from approved PO
-9. **Manager** approves invoice
-10. **Finance** marks invoice as paid
-11. **Reports** now reflect the complete procurement cycle with spend analytics
+**Database** — **MongoDB Atlas** (with Atlas Vector Search powering RAG). A local in-memory MongoDB fallback means the app runs with zero setup in development.
 
 ---
 
 ## 📁 Project Structure
 
 ```
-procurement-ERP/
-├── client/                          # Next.js Frontend
-│   ├── src/
-│   │   ├── app/(auth)/             # Auth pages (login, register, forgot password)
-│   │   ├── app/(dashboard)/        # Procurement module pages
-│   │   ├── app/(marketing)/        # Landing page and pricing
-│   │   ├── components/             # Reusable React components
-│   │   ├── context/                # React Context (AuthContext)
-│   │   ├── hooks/                  # Custom React hooks
-│   │   ├── lib/                    # API client, utilities, PDF generation
-│   │   └── styles/                 # Global CSS
-│   ├── package.json
-│   ├── tailwind.config.js
-│   └── next.config.js
-│
-├── server/                          # Express Backend
-│   ├── src/
-│   │   ├── app.js                  # Express app setup
-│   │   ├── config/                 # Database, email, environment
-│   │   ├── models/                 # Mongoose schemas
-│   │   ├── controllers/            # Business logic
-│   │   ├── routes/                 # API endpoints
-│   │   ├── middleware/             # Auth, validation, error handling
-│   │   ├── services/               # Complex services (approval, comparison, PDF, email)
-│   │   ├── utils/                  # Helpers and validators
-│   │   ├── seed.js                 # Demo data generator
-│   │   └── templates/              # Email/PDF HTML templates
-│   ├── package.json
-│   ├── server.js                   # Entry point
-│   └── .env.example
-│
-├── docs/                            # Documentation
-│   ├── API.md                       # Endpoint reference
-│   ├── SCHEMA.md                    # Database schema details
-│   └── DEMO_FLOW.md                # Step-by-step demo walkthrough
-│
-├── README.md                        # This file
-└── docker-compose.yml              # Docker setup (optional)
+WOLF-ERP/
+├── client/                  # Next.js frontend
+│   └── src/
+│       ├── app/(auth)/      # login, register, forgot-password
+│       ├── app/(dashboard)/ # procurement modules
+│       ├── app/(marketing)/ # landing & pricing
+│       ├── components/      # reusable UI (incl. AI chat, demo notices)
+│       ├── context/         # AuthContext (JWT/session + demo notices)
+│       ├── hooks/ lib/      # hooks, API client, utils, PDF
+│       └── ...
+├── server/                  # Express backend (MVC)
+│   └── src/
+│       ├── config/          # db, email, env
+│       ├── models/          # Mongoose schemas
+│       ├── controllers/     # request handlers
+│       ├── routes/          # REST endpoints
+│       ├── middleware/      # auth, roles, validation, errors
+│       ├── services/        # approval engine, comparison, PDF, email,
+│       │                    #   aiService, embeddingService, ragService,
+│       │                    #   cleanupService (dormancy reset)
+│       ├── seed.js          # demo-data generator
+│       └── templates/       # email/PDF HTML
+├── docs/                    # API.md, SCHEMA.md, DEMO_FLOW.md, atlas-vector-search.md
+└── render.yaml              # Render Blueprint for the backend
 ```
 
 ---
 
-## 🔌 API Endpoints (Overview)
+## 🚀 Local Development
 
-The backend exposes a **RESTful API** with the following module groups:
+### Prerequisites
+- Node.js 18+ and npm
+- MongoDB is **optional** — the backend falls back to an in-memory database and auto-seeds demo data.
 
-### Auth Module
-- `POST /api/auth/register` — Create new account
-- `POST /api/auth/login` — Login and get JWT token
-- `POST /api/auth/forgot-password` — Request password reset
+### 1. Clone
+```bash
+git clone https://github.com/daxpatel235/WOLF-ERP.git
+cd WOLF-ERP
+```
 
-### Vendors
-- `GET /api/vendors` — List all vendors
-- `POST /api/vendors` — Create vendor
-- `GET /api/vendors/:id` — Get vendor details
-- `PUT /api/vendors/:id` — Update vendor
-
-### RFQs
-- `GET /api/rfqs` — List RFQs
-- `POST /api/rfqs` — Create RFQ
-- `GET /api/rfqs/:id` — Get RFQ details
-- `PUT /api/rfqs/:id` — Update RFQ
-
-### Quotations
-- `GET /api/quotations` — List quotations
-- `POST /api/quotations` — Submit quotation
-- `PUT /api/quotations/:id` — Update quotation
-- `POST /api/quotations/compare` — Compare multiple quotations
-
-### Purchase Orders
-- `GET /api/purchase-orders` — List POs
-- `POST /api/purchase-orders` — Create PO
-- `PUT /api/purchase-orders/:id` — Update PO status
-
-### Invoices
-- `GET /api/invoices` — List invoices
-- `POST /api/invoices` — Create invoice
-- `GET /api/invoices/:id/pdf` — Download invoice as PDF
-
-### Approvals
-- `GET /api/approvals` — List pending approvals
-- `POST /api/approvals/:id/decide` — Approve or reject
-
-### Reports
-- `GET /api/reports/summary` — KPI summary
-- `GET /api/reports/spending` — Spending by category
-- `GET /api/reports/vendors` — Vendor performance
-
-### AI (Gemini-powered)
-- `GET /api/ai/status` — Check AI provider status and chat availability
-- `POST /api/ai/draft-rfq` — Generate a structured RFQ from a plain-English description
-- `POST /api/ai/extract-document` — Extract fields from an uploaded invoice/document (text or image)
-- `POST /api/ai/award-insight` — Explain quotation award recommendation
-- `POST /api/ai/report-summary` — Generate executive summary of spend report
-- `POST /api/ai/vendor-risk` — Score vendor risk across reliability, pricing, and delivery
-- `POST /api/ai/invoice-audit` — 3-way match audit (invoice vs. PO vs. GRN)
-- `POST /api/ai/chat` — RAG chat with conversation history
-- `POST /api/ai/chat/reindex` — Rebuild the knowledge base (admin/manager only)
-
-**For full API reference**, see [docs/API.md](docs/API.md).
-
----
-
-## 🔐 Security Features
-
-✅ **JWT Authentication** — Stateless token-based auth with 7-day expiry  
-✅ **Password Hashing** — bcrypt with salt rounds  
-✅ **Role-Based Access Control (RBAC)** — Middleware enforces permissions per endpoint  
-✅ **Input Validation** — Sanitize and validate all user inputs  
-✅ **CORS Protection** — Restrict cross-origin requests  
-✅ **Email Verification** — Avoid email enumeration in password reset  
-✅ **Error Handling** — Graceful error responses with proper HTTP status codes  
-✅ **Activity Audit Trail** — Complete log of all user actions  
-
----
-
-## 🧪 Testing & Demo Data
-
-Run `npm run seed` in the backend to load demo data:
-
+### 2. Backend (terminal 1)
 ```bash
 cd server
-npm run seed
+npm install
+npm run dev        # API on http://localhost:5000 (auto-seeds on first boot)
 ```
 
-This populates the database with:
-- 3 demo user accounts (admin, manager, approver)
-- 10 vendors across 5 categories
-- 5 RFQs with quotations
-- 3 purchase orders at various stages
-- 6 invoices with different statuses
-- Approval tasks in pending queue
-
----
-
-## 🚢 Deployment
-
-### Using Docker
-```bash
-docker-compose up
-```
-
-This starts both backend and frontend in containers.
-
-### Manual Deployment
-1. Set `NODE_ENV=production`
-2. Configure `MONGO_URI` to point to your MongoDB instance
-3. Set secure `JWT_SECRET` and `SMTP_*` credentials
-4. Build frontend: `cd client && npm run build`
-5. Start backend: `cd server && npm start`
-
----
-
-## 📚 Documentation
-
-- **[API.md](docs/API.md)** — Complete endpoint reference with request/response examples
-- **[SCHEMA.md](docs/SCHEMA.md)** — Database schema, relationships, and field descriptions
-- **[DEMO_FLOW.md](docs/DEMO_FLOW.md)** — Step-by-step walkthrough of the procurement workflow
-
----
-
-## 🛠 Development
-
-### Run Backend in Watch Mode
-```bash
-cd server
-npm run dev    # Uses nodemon for auto-restart
-```
-
-### Run Frontend in Dev Mode
+### 3. Frontend (terminal 2)
 ```bash
 cd client
-npm run dev    # Next.js dev server with fast refresh
+npm install
+npm run dev        # App on http://localhost:3000
 ```
 
-### Environment Variables
+### Seeded demo logins (local / seeded environments only)
+| Email | Password | Role |
+|---|---|---|
+| `admin@wolferp.in` | `admin123` | Admin |
+| `manager@wolferp.in` | `manager123` | Manager |
+| `approver@wolferp.in` | `approver123` | Approver |
 
-**Backend** (.env):
+> These exist only after seeding. On the **live demo**, register your own account instead.
+
+---
+
+## ☁️ Deployment
+
+The project deploys as three free-tier pieces:
+
+1. **Database — MongoDB Atlas (M0).** Create a free cluster, add a database user, allow network access from `0.0.0.0/0`, and create an Atlas Vector Search index (768 dims, cosine) for RAG.
+2. **Backend — Render.** Use the included **`render.yaml` Blueprint** (Render → New → Blueprint → pick this repo). It builds `server/`, runs a health check, and auto-generates secrets. Fill in `MONGO_URI`, `CLIENT_URL`, and (optionally) `GEMINI_API_KEY`.
+3. **Frontend — Vercel.** Import the repo with **Root Directory = `client`** and set `NEXT_PUBLIC_API_URL` to `https://<your-render-service>.onrender.com/api`. Then set the backend's `CLIENT_URL` to your Vercel URL for CORS.
+
+Every push to `main` triggers an automatic redeploy on both Render and Vercel.
+
+### Environment variables
+
+**Backend** (`server/.env`)
 ```
-MONGO_URI=mongodb://localhost:27017/wolf_erp
+MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/wolf_erp
 PORT=5000
-JWT_SECRET=your-secret-key-here
-JWT_EXPIRES_IN=7d
+JWT_SECRET=your-long-random-string
+JWT_EXPIRES_IN=15d
 CLIENT_URL=http://localhost:3000
-SMTP_HOST=smtp.gmail.com
+GEMINI_API_KEY=                 # optional; AI features disable cleanly if blank
+VECTOR_INDEX=knowledge_vector_index
+EMBED_DIM=768
+CLEANUP_TOKEN=your-long-random-string   # enables the weekly dormancy-reset endpoint
+CLEANUP_INACTIVE_DAYS=30
+# Optional SMTP (blank = emails log to console)
+SMTP_HOST=
 SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-GEMINI_API_KEY=your-gemini-api-key        # Required for all AI features; get free key at aistudio.google.com
+SMTP_USER=
+SMTP_PASS=
 ```
 
-**Frontend** (.env.local):
+**Frontend** (`client/.env.local`)
 ```
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
 ```
 
 ---
 
-## 📊 Architecture Highlights
+## 🔌 API Overview
 
-### **Separation of Concerns**
-- **Controllers** → Handle HTTP requests/responses
-- **Services** → Implement complex business logic (approval engine, comparison)
-- **Models** → Define data structure and validation
-- **Middleware** → Cross-cutting concerns (auth, validation, error handling)
+REST API grouped by module (full reference in [docs/API.md](docs/API.md)):
 
-### **Approval Engine** 
-Idempotent state machine that:
-- Opens approval tasks for POs, invoices, and RFQs
-- Routes decisions back to source entities
-- Maintains complete audit trail
-- Prevents duplicate approvals
-
-### **Quotation Comparison**
-- Side-by-side analysis with automatic highlighting
-- Lowest-price detection
-- Delivery timeline comparison
-- Vendor rating indicators
-
-### **Error Handling**
-- Structured error responses with HTTP status codes
-- Request validation before processing
-- Database operation error wrapping
-- Client-friendly error messages
+- **Auth** — `POST /api/auth/register`, `/login`, `/forgot-password`, `GET /api/auth/me`
+- **Vendors / RFQs / Quotations / Purchase Orders / Invoices** — standard CRUD under `/api/<module>`, plus `POST /api/quotations/compare` and `GET /api/invoices/:id/pdf`
+- **Approvals** — `GET /api/approvals`, `POST /api/approvals/:id/decide`
+- **Reports** — `GET /api/reports/summary | spend-by-category | spend-by-vendor | activity`
+- **AI** — `/api/ai/draft-rfq`, `/extract-document`, `/award-insight`, `/report-summary`, `/vendor-risk`, `/invoice-audit`, `/chat`
+- **Admin** — `POST /api/admin/cleanup` (token-protected dormancy reset)
 
 ---
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit changes with clear messages
-4. Push to branch (`git push origin feature/your-feature`)
-5. Open a Pull Request
+## 📚 Documentation
+- [docs/API.md](docs/API.md) — endpoint reference
+- [docs/SCHEMA.md](docs/SCHEMA.md) — database schema & relationships
+- [docs/DEMO_FLOW.md](docs/DEMO_FLOW.md) — step-by-step walkthrough
+- [docs/atlas-vector-search.md](docs/atlas-vector-search.md) — RAG vector index setup
 
 ---
 
 ## 📄 License
 
-This project is provided as-is for educational and hackathon purposes.
+Provided as-is for educational and demonstration purposes.
 
 ---
 
-## ❓ FAQ
-
-**Q: Can I run this without MongoDB?**  
-A: Yes! The backend automatically falls back to an in-memory MongoDB for development. Real data persists only if you configure `MONGO_URI` to a real MongoDB instance.
-
-**Q: How do I add new users?**  
-A: Use the registration page, or manually add users via the admin panel after logging in as admin.
-
-**Q: Can vendors use this system?**  
-A: Yes! Vendors can create accounts and submit quotations. They have a limited role with access only to their RFQs, quotations, and purchase orders.
-
-**Q: Is this production-ready?**  
-A: The core architecture is solid, but for production: enable HTTPS, use a real database with backups, configure SMTP properly, and add rate limiting.
-
----
-
-**Built with ❤️ for the Odoo Procurement Hackathon**
-
-For questions or support, open an issue on GitHub.
+**Built by Dax Patel.** Questions or ideas? Open an issue on GitHub.
