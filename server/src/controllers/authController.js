@@ -1,0 +1,123 @@
+const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const User = require('../models/User');
+const env = require('../config/env');
+const { asyncHandler } = require('../middleware/errorHandler');
+const { sendMail } = require('../services/emailService');
+const notify = require('../services/notificationService');
+
+function signToken(user) {
+  return jwt.sign({ id: user._id, role: user.role }, env.JWT_SECRET, {
+    expiresIn: env.JWT_EXPIRES_IN,
+  });
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const DEMO_AUTHOR = 'Dax Patel';
+
+// Shown on a brand-new account's first sign-in.
+function welcomeNotice() {
+  return {
+    kind: 'welcome',
+    title: 'Welcome to Wolf ERP',
+    message:
+      `This is a demo project by ${DEMO_AUTHOR}. Explore freely and add data — ` +
+      `but heads-up: if you don't sign in for ${env.CLEANUP_INACTIVE_DAYS} days, all of your ` +
+      `data is automatically wiped to keep the demo lean. Your login always stays.`,
+  };
+}
+
+// Shown when a returning user signs in after being idle past the wipe window.
+function dataWipedNotice(awayDays) {
+  return {
+    kind: 'data-wiped',
+    awayDays,
+    title: 'Your demo data was reset',
+    message:
+      `You were away for ${awayDays} days, so your workspace data was wiped. ` +
+      `This is a demo project by ${DEMO_AUTHOR}: data left idle for ${env.CLEANUP_INACTIVE_DAYS}+ days ` +
+      `is cleared automatically. Your login is intact — start fresh anytime.`,
+  };
+}
+
+// POST /api/auth/register
+const register = asyncHandler(async (req, res) => {
+  const { name, email, password, role, company } = req.body;
+
+  const exists = await User.findOne({ email: String(email).toLowerCase() });
+  if (exists) {
+    return res.status(409).json({ message: 'An account with this email already exists.' });
+  }
+
+  // Only allow self-registration for non-privileged roles.
+  const safeRole = ['buyer', 'manager', 'approver', 'vendor'].includes(role) ? role : 'buyer';
+
+  // loginCount starts at 1: registering auto-signs them in, so a later manual
+  // login shouldn't re-trigger the first-login welcome.
+  const user = await User.create({ name, email, password, role: safeRole, company, loginCount: 1 });
+  await notify.record({ actor: user.name, action: 'registered', entityType: 'User', message: `${user.name} created an account` });
+
+  const token = signToken(user);
+  res.status(201).json({ token, user: user.toJSON(), notice: welcomeNotice() });
+});
+
+// POST /api/auth/login
+const login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  const user = await User.findOne({ email: String(email).toLowerCase() });
+  if (!user || !(await user.comparePassword(password))) {
+    return res.status(401).json({ message: 'Invalid email or password.' });
+  }
+  if (user.status !== 'Active') {
+    return res.status(403).json({ message: 'Your account is not active. Contact an administrator.' });
+  }
+
+  // Work out the demo notice BEFORE we stamp this login.
+  const firstLogin = (user.loginCount || 0) === 0;
+  const prevLogin = user.lastLoginAt ? new Date(user.lastLoginAt).getTime() : null;
+  const awayDays = prevLogin ? Math.floor((Date.now() - prevLogin) / MS_PER_DAY) : 0;
+  // Past the idle window → the weekly cleanup has (or is about to have) wiped
+  // everything but the login.
+  const dataWiped = !firstLogin && awayDays >= env.CLEANUP_INACTIVE_DAYS;
+
+  // Stamp activity so the dormancy cleanup keeps this user's data alive.
+  // updateOne (not save) avoids re-running validation / the password hash hook.
+  await User.updateOne(
+    { _id: user._id },
+    { $set: { lastLoginAt: new Date() }, $inc: { loginCount: 1 } }
+  );
+
+  let notice = null;
+  if (firstLogin) notice = welcomeNotice();
+  else if (dataWiped) notice = dataWipedNotice(awayDays);
+
+  const token = signToken(user);
+  res.json({ token, user: user.toJSON(), notice });
+});
+
+// GET /api/auth/me
+const me = asyncHandler(async (req, res) => {
+  res.json({ user: req.user.toJSON() });
+});
+
+// POST /api/auth/forgot-password
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email: String(email || '').toLowerCase() });
+
+  // Always respond the same way so we don't leak which emails exist.
+  if (user) {
+    const resetToken = crypto.randomBytes(20).toString('hex');
+    await sendMail({
+      to: user.email,
+      subject: 'Reset your Wolf ERP password',
+      html: `<p>Use this token to reset your password: <code>${resetToken}</code></p>
+             <p>If you didn't request this, you can ignore this email.</p>`,
+    });
+  }
+
+  res.json({ message: 'If that email is registered, a reset link is on its way.' });
+});
+
+module.exports = { register, login, me, forgotPassword };

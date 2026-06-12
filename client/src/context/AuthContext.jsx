@@ -12,6 +12,9 @@ export function AuthProvider({ children }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true); // true until first hydration
+  // One-shot demo disclaimer returned by the server on login/register
+  // (first-login welcome, or "your data was wiped after 30 days idle").
+  const [notice, setNotice] = useState(null);
 
   // Marks an intentional logout in progress. The dashboard route guard reads
   // this so that clearing the user doesn't bounce us to /login — logout sends
@@ -49,16 +52,20 @@ export function AuthProvider({ children }) {
     saveSession(res.token, res.user, remember);
     loggingOut.current = false;
     setUser(res.user);
+    setNotice(res.notice || null);
     return res.user;
   }, []);
 
   const register = useCallback(async (data) => {
     const res = await authApi.register(data);
-    saveSession(res.token, res.user, false);
+    saveSession(res.token, res.user, true);
     loggingOut.current = false;
     setUser(res.user);
+    setNotice(res.notice || null);
     return res.user;
   }, []);
+
+  const clearNotice = useCallback(() => setNotice(null), []);
 
   // Logging out returns the user to the landing page (not the login screen).
   const logout = useCallback(() => {
@@ -76,6 +83,8 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
+    notice,
+    clearNotice,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_HOME } from "@/lib/constants";
+import DemoDisclaimer from "@/components/shared/DemoDisclaimer";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -63,12 +64,15 @@ export default function LoginPage() {
 
   return (
     <div>
-      <div className="mb-8">
+      <div className="mb-6">
         <h2 className="text-2xl font-bold text-slate-900">Welcome back</h2>
         <p className="text-slate-500 mt-1">
           Sign in to your Wolf workspace to continue.
         </p>
       </div>
+
+      {/* Demo disclaimer */}
+      <DemoDisclaimer className="mb-6" />
 
       {/* Server error banner */}
       {serverError && (

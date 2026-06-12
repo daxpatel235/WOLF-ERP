@@ -1,0 +1,39 @@
+# Render Blueprint for the Wolf ERP backend.
+# Deploy: render.com → New → Blueprint → pick this repo. Render reads this file,
+# creates the service, and prompts for the secrets marked `sync: false`.
+services:
+  - type: web
+    name: wolf-erp-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Auto-generated strong secrets — you never have to invent these.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLEANUP_TOKEN
+        generateValue: true
+      # Sensible defaults.
+      - key: JWT_EXPIRES_IN
+        value: 15d
+      - key: EMBED_DIM
+        value: "768"
+      - key: VECTOR_INDEX
+        value: knowledge_vector_index
+      - key: CLEANUP_INACTIVE_DAYS
+        value: "30"
+      # You must fill these in the dashboard (sync:false = not stored in git):
+      #   MONGO_URI    → your Atlas connection string
+      #   CLIENT_URL   → your Vercel URL (for CORS), set after the frontend deploys
+      #   GEMINI_API_KEY → from aistudio.google.com (optional; AI features off if blank)
+      - key: MONGO_URI
+        sync: false
+      - key: CLIENT_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

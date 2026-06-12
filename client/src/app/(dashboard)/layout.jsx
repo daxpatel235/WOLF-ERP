@@ -25,6 +25,7 @@ import { initialsOf } from "@/lib/utils";
 import GlobalSearch from "@/components/shared/GlobalSearch";
 import NotificationsBell from "@/components/shared/NotificationsBell";
 import AiChat from "@/components/shared/AiChat";
+import DemoNotice from "@/components/shared/DemoNotice";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -287,6 +288,9 @@ export default function DashboardLayout({ children }) {
 
       {/* Floating RAG assistant (renders itself only when AI chat is configured) */}
       <AiChat />
+
+      {/* Demo disclaimer popup (welcome / data-wiped). Self-hides when no notice. */}
+      <DemoNotice />
 
       {/* Mobile backdrop */}
       {sidebarOpen && (

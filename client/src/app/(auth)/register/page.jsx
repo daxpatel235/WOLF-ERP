@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLE_HOME } from "@/lib/constants";
+import DemoDisclaimer from "@/components/shared/DemoDisclaimer";
 
 const ROLES = [
   { value: "admin", label: "Admin", desc: "Full system control" },
@@ -122,6 +123,9 @@ export default function RegisterPage() {
           Join Wolf and bring order to your procurement.
         </p>
       </div>
+
+      {/* Demo disclaimer */}
+      <DemoDisclaimer className="mb-6" />
 
       {serverError && (
         <div className="flex items-center gap-2 p-3 mb-5 text-sm bg-red-50 border border-red-100 text-red-700 rounded-lg">

@@ -91,7 +91,30 @@ Payment & Reporting
 - Activity timeline with actor, action, entity, and timestamp
 - Email notifications for RFQs, approvals, and invoice updates
 
-### 10. **Authentication & Security**
+### 10. **AI-Powered Features (Gemini)**
+
+Wolf ERP ships three tiers of AI built on Google Gemini — all requests go through `POST /api/ai/*`.
+
+#### 🤖 AI Feature 1 — Assistive Drafting & Document Extraction
+- **RFQ Auto-Draft**: describe a procurement need in plain English; AI generates a structured RFQ (items, quantities, specs)
+- **Invoice / Document Extraction**: upload a PDF or image of a vendor invoice and AI extracts fields (vendor, amounts, line items, dates) automatically
+- Eliminates manual data entry at the point of creation
+
+#### 📊 AI Feature 2 — Analytical Insights
+- **Quotation Award Insight**: after comparison, AI explains *why* a vendor should be awarded — price, delivery, risk — as a one-paragraph justification
+- **Report Executive Summary**: AI summarizes the spend/KPI report into a concise narrative for management
+- **Vendor Risk Scoring**: AI scores each vendor (0–100) across reliability, pricing consistency, and delivery history
+- **Invoice 3-Way Match Audit**: AI cross-checks invoice vs. PO vs. GRN and flags discrepancies before payment
+
+#### 💬 AI Feature 3 — Wolf AI Chat (RAG)
+- Floating violet chat widget available across every dashboard page
+- Answers natural-language questions grounded in **your organisation's own data** (vendors, RFQs, quotes, POs, invoices) — not generic knowledge
+- Retrieval pipeline: Gemini embeddings → MongoDB vector store → context-augmented answer
+- Includes source chips that deep-link directly to the referenced record
+- Scope-guarded (off-topic questions are refused before any generation call) with per-user rate limiting
+- Chat history persists across page navigations within the session
+
+### 11. **Authentication & Security**
 - JWT-based stateless authentication
 - Password hashing with bcrypt
 - Session management with token expiry
@@ -140,6 +163,7 @@ client/src/
 | **Environment Config** | dotenv | Environment variable management |
 | **CORS** | cors middleware | Cross-origin request handling |
 | **Package Manager** | npm | Dependency management |
+| **AI Provider** | Google Gemini (`@google/genai`) | Gemini 2.5 Flash for generation; `gemini-embedding-001` (768-dim) for RAG vector search |
 
 **Backend Architecture (MVC Pattern):**
 ```
@@ -150,7 +174,7 @@ server/src/
   controllers/              → Business logic for each module (auth, vendors, RFQs, etc.)
   routes/                   → REST API endpoint definitions
   middleware/               → JWT auth, role-based access, validation, error handling
-  services/                 → Complex business logic (approval engine, comparison, PDF, email)
+  services/                 → Complex business logic (approval engine, comparison, PDF, email, aiService, embeddingService, ragService)
   utils/                    → Helpers (ID generation, logging, validators)
   templates/                → HTML templates for emails and PDFs
   seed.js                   → Demo data generator for testing
@@ -343,6 +367,17 @@ The backend exposes a **RESTful API** with the following module groups:
 - `GET /api/reports/spending` — Spending by category
 - `GET /api/reports/vendors` — Vendor performance
 
+### AI (Gemini-powered)
+- `GET /api/ai/status` — Check AI provider status and chat availability
+- `POST /api/ai/draft-rfq` — Generate a structured RFQ from a plain-English description
+- `POST /api/ai/extract-document` — Extract fields from an uploaded invoice/document (text or image)
+- `POST /api/ai/award-insight` — Explain quotation award recommendation
+- `POST /api/ai/report-summary` — Generate executive summary of spend report
+- `POST /api/ai/vendor-risk` — Score vendor risk across reliability, pricing, and delivery
+- `POST /api/ai/invoice-audit` — 3-way match audit (invoice vs. PO vs. GRN)
+- `POST /api/ai/chat` — RAG chat with conversation history
+- `POST /api/ai/chat/reindex` — Rebuild the knowledge base (admin/manager only)
+
 **For full API reference**, see [docs/API.md](docs/API.md).
 
 ---
@@ -432,6 +467,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASS=your-app-password
+GEMINI_API_KEY=your-gemini-api-key        # Required for all AI features; get free key at aistudio.google.com
 ```
 
 **Frontend** (.env.local):
