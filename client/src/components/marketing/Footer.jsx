@@ -75,8 +75,10 @@ export default function Footer() {
           <p className="text-sm text-slate-500">
             © {new Date().getFullYear()} Wolf ERP. All rights reserved.
           </p>
-          <div className="flex items-center gap-6 text-sm text-slate-500">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-500">
             <Link href="/pricing" className="hover:text-slate-300 transition">Pricing</Link>
+            <Link href="/terms" className="hover:text-slate-300 transition">Terms</Link>
+            <Link href="/privacy" className="hover:text-slate-300 transition">Privacy</Link>
             <Link href="/login" className="hover:text-slate-300 transition">Login</Link>
             <Link href="/register" className="hover:text-slate-300 transition">Sign up</Link>
           </div>

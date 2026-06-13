@@ -315,8 +315,14 @@ export default function RegisterPage() {
             />
             <span className="text-sm text-slate-600">
               I agree to Wolf's{" "}
-              <span className="text-blue-600 font-medium">Terms</span> and{" "}
-              <span className="text-blue-600 font-medium">Privacy Policy</span>.
+              <Link href="/terms" target="_blank" className="text-blue-600 font-medium hover:text-blue-700">
+                Terms
+              </Link>{" "}
+              and{" "}
+              <Link href="/privacy" target="_blank" className="text-blue-600 font-medium hover:text-blue-700">
+                Privacy Policy
+              </Link>
+              .
             </span>
           </label>
           {errors.agree && <p className="text-xs text-red-600 mt-1">{errors.agree}</p>}
