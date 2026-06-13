@@ -27,15 +27,14 @@ const ROLES = [
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, user, loading: authLoading } = useAuth();
+  const { register, user } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
 
   // Already signed in? Don't show the signup form — send them to the app.
+  // Acting on the hydrated user means the redirect fires immediately.
   useEffect(() => {
-    if (!authLoading && user) {
-      router.replace(ROLE_HOME[user.role] || "/dashboard");
-    }
-  }, [authLoading, user, router]);
+    if (user) router.replace(ROLE_HOME[user.role] || "/dashboard");
+  }, [user, router]);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState("");
 
@@ -121,6 +120,15 @@ export default function RegisterPage() {
   const strength = passwordStrength();
   const strengthColors = ["bg-slate-200", "bg-red-400", "bg-amber-400", "bg-amber-500", "bg-emerald-500"];
   const strengthLabels = ["", "Weak", "Fair", "Good", "Strong"];
+
+  // A session already exists — redirecting to the dashboard; hide the form.
+  if (user) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-10 text-slate-500">
+        <Loader2 size={20} className="animate-spin" /> Taking you to your dashboard…
+      </div>
+    );
+  }
 
   return (
     <div>

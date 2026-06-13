@@ -10,16 +10,16 @@ import DemoDisclaimer from "@/components/shared/DemoDisclaimer";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, user, loading: authLoading } = useAuth();
+  const { login, user } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
 
   // Already signed in (e.g. a "keep me signed in" session survived a browser
-  // restart)? Skip the form and go straight to the dashboard.
+  // restart)? Go straight to the dashboard. We act on the hydrated user (not
+  // the slower server re-check), so the redirect fires immediately — never
+  // after you've started typing into the form.
   useEffect(() => {
-    if (!authLoading && user) {
-      router.replace(ROLE_HOME[user.role] || "/dashboard");
-    }
-  }, [authLoading, user, router]);
+    if (user) router.replace(ROLE_HOME[user.role] || "/dashboard");
+  }, [user, router]);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState("");
 
@@ -69,6 +69,16 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  // A session already exists — we're redirecting to the dashboard. Show a
+  // brief loader instead of the form so it can't be filled in and submitted.
+  if (user) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-10 text-slate-500">
+        <Loader2 size={20} className="animate-spin" /> Signing you in…
+      </div>
+    );
+  }
 
   return (
     <div>

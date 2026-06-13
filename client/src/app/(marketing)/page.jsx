@@ -14,6 +14,7 @@ import {
   Download,
   MousePointer2,
 } from "lucide-react";
+import RedirectIfAuthed from "@/components/shared/RedirectIfAuthed";
 
 /* ----------------------------------------------------------------
    HERO
@@ -496,6 +497,7 @@ function CtaStrip() {
 export default function LandingPage() {
   return (
     <>
+      <RedirectIfAuthed />
       <Hero />
       <InvoiceAutomation />
       <FeatureGrid />
