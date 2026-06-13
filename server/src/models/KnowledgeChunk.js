@@ -11,6 +11,10 @@ const mongoose = require('mongoose');
 // cosine similarity in process, so the same data works everywhere.
 const knowledgeChunkSchema = new mongoose.Schema(
   {
+    // Which user account this knowledge belongs to. Chat is scoped to the
+    // signed-in user, so retrieval (and re-indexing) only ever touches the
+    // owner's own records — never another account's data.
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     // Source record identity, e.g. source='vendor', sourceId='V-1003'.
     source: {
       type: String,
@@ -28,7 +32,8 @@ const knowledgeChunkSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// One chunk per source record; re-indexing upserts on this pair.
-knowledgeChunkSchema.index({ source: 1, sourceId: 1 }, { unique: true });
+// One chunk per source record *per owner* (codes like V-1003 repeat across
+// accounts); re-indexing upserts on this triple.
+knowledgeChunkSchema.index({ owner: 1, source: 1, sourceId: 1 }, { unique: true });
 
 module.exports = mongoose.model('KnowledgeChunk', knowledgeChunkSchema);

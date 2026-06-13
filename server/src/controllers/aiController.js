@@ -358,14 +358,14 @@ const chat = asyncHandler(async (req, res) => {
         .map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content.slice(0, 2000) }))
     : [];
 
-  const result = await rag.answer({ message, history });
+  const result = await rag.answer({ message, history, owner: req.user._id });
   res.json({ data: result });
 });
 
 // POST /api/ai/chat/reindex  { force?: boolean }
-// Rebuild the knowledge base (embeddings). Admins/managers only.
+// Rebuild the signed-in user's knowledge base (embeddings).
 const reindex = asyncHandler(async (req, res) => {
-  const result = await rag.reindex({ force: Boolean(req.body?.force) });
+  const result = await rag.reindex({ owner: req.user._id, force: Boolean(req.body?.force) });
   res.json({ data: result });
 });
 

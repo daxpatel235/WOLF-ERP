@@ -144,14 +144,16 @@ function invoiceDoc(i) {
   };
 }
 
-// Pull everything and flatten into one array of {source, sourceId, title, text}.
-async function buildDocuments() {
+// Pull this owner's records and flatten into one array of
+// {source, sourceId, title, text}. Scoped by `createdBy` so the knowledge base
+// only ever contains the signed-in user's own data.
+async function buildDocuments(owner) {
   const [vendors, rfqs, quotes, pos, invoices] = await Promise.all([
-    Vendor.find().lean(),
-    RFQ.find().lean(),
-    Quotation.find().lean(),
-    PurchaseOrder.find().lean(),
-    Invoice.find().lean(),
+    Vendor.find({ createdBy: owner }).lean(),
+    RFQ.find({ createdBy: owner }).lean(),
+    Quotation.find({ createdBy: owner }).lean(),
+    PurchaseOrder.find({ createdBy: owner }).lean(),
+    Invoice.find({ createdBy: owner }).lean(),
   ]);
   return [
     ...vendors.map(vendorDoc),
@@ -168,20 +170,49 @@ const hash = (s) => crypto.createHash('sha1').update(s).digest('hex');
 // 2. Indexing
 // ---------------------------------------------------------------------------
 
+// One-time migration: drop the pre-owner global unique index and purge any
+// legacy chunks that predate per-account scoping. Runs at most once per process.
+let _schemaFixed = false;
+async function ensureOwnerSchema() {
+  if (_schemaFixed) return;
+  _schemaFixed = true;
+  try {
+    const indexes = await KnowledgeChunk.collection.indexes();
+    if (indexes.some((ix) => ix.name === 'source_1_sourceId_1')) {
+      await KnowledgeChunk.collection.dropIndex('source_1_sourceId_1');
+      logger.info('RAG: dropped legacy global source+sourceId index (now scoped per owner).');
+    }
+    // Chunks written before owner scoping can't be served safely — drop them.
+    const purged = await KnowledgeChunk.deleteMany({ owner: { $exists: false } });
+    if (purged.deletedCount) {
+      logger.info(`RAG: purged ${purged.deletedCount} pre-owner knowledge chunks.`);
+    }
+  } catch (err) {
+    _schemaFixed = false; // let a later call retry if this one raced/failed
+    logger.warn(`RAG owner-schema migration skipped: ${err.message}`);
+  }
+}
+
 /**
- * Re-embed and store the knowledge base. Incremental: only records whose text
- * changed since last time are re-embedded. Orphaned chunks (records that were
- * deleted) are pruned. Returns a small summary for the API/UI.
+ * Re-embed and store one owner's knowledge base. Incremental: only records whose
+ * text changed since last time are re-embedded. Orphaned chunks (records that
+ * were deleted) are pruned. Returns a small summary for the API/UI.
  */
-async function reindex({ force = false } = {}) {
+async function reindex({ owner, force = false } = {}) {
   if (!enabled) {
     const e = new Error('Chat needs GEMINI_API_KEY for embeddings.');
     e.statusCode = 503;
     throw e;
   }
+  if (!owner) {
+    const e = new Error('reindex requires an owner (user id).');
+    e.statusCode = 400;
+    throw e;
+  }
+  await ensureOwnerSchema();
 
-  const docs = await buildDocuments();
-  const existing = await KnowledgeChunk.find().select('source sourceId contentHash').lean();
+  const docs = await buildDocuments(owner);
+  const existing = await KnowledgeChunk.find({ owner }).select('source sourceId contentHash').lean();
   const prevHash = new Map(existing.map((c) => [`${c.source}:${c.sourceId}`, c.contentHash]));
   const liveKeys = new Set(docs.map((d) => `${d.source}:${d.sourceId}`));
 
@@ -193,9 +224,10 @@ async function reindex({ force = false } = {}) {
     const vectors = await embeddings.embedBatch(stale.map((d) => d.text), 'RETRIEVAL_DOCUMENT');
     const ops = stale.map((d, i) => ({
       updateOne: {
-        filter: { source: d.source, sourceId: d.sourceId },
+        filter: { owner, source: d.source, sourceId: d.sourceId },
         update: {
           $set: {
+            owner,
             title: d.title,
             text: d.text,
             embedding: vectors[i],
@@ -209,28 +241,20 @@ async function reindex({ force = false } = {}) {
     embedded = stale.length;
   }
 
-  // Prune chunks whose source record no longer exists.
+  // Prune this owner's chunks whose source record no longer exists.
   const orphans = existing.filter((c) => !liveKeys.has(`${c.source}:${c.sourceId}`));
   if (orphans.length) {
     await KnowledgeChunk.deleteMany({
+      owner,
       $or: orphans.map((o) => ({ source: o.source, sourceId: o.sourceId })),
     });
   }
 
   const result = { total: docs.length, embedded, unchanged: docs.length - embedded, pruned: orphans.length };
   logger.info(
-    `RAG reindex: ${result.total} records, ${result.embedded} (re)embedded, ${result.pruned} pruned.`
+    `RAG reindex (owner ${owner}): ${result.total} records, ${result.embedded} (re)embedded, ${result.pruned} pruned.`
   );
   return result;
-}
-
-// Build the index automatically the first time chat is used on an empty store.
-async function ensureIndexed() {
-  const count = await KnowledgeChunk.estimatedDocumentCount();
-  if (count === 0) {
-    logger.info('Knowledge base empty — building it now (first chat request).');
-    await reindex();
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -251,15 +275,16 @@ function cosine(a, b) {
   return dot / (Math.sqrt(na) * Math.sqrt(nb));
 }
 
-// Native Atlas vector search. Throws if the index/feature isn't available, so
-// the caller can fall back to cosine.
-async function atlasSearch(queryVector, k) {
+// Native Atlas vector search, restricted to one owner's chunks. Throws if the
+// index/feature isn't available, so the caller can fall back to cosine.
+async function atlasSearch(queryVector, owner, k) {
   const rows = await KnowledgeChunk.aggregate([
     {
       $vectorSearch: {
         index: env.VECTOR_INDEX,
         path: 'embedding',
         queryVector,
+        filter: { owner },
         numCandidates: Math.max(k * 15, 100),
         limit: k,
       },
@@ -282,8 +307,8 @@ async function atlasSearch(queryVector, k) {
 // Scores are normalised to [0,1] as (1+cos)/2 so they're directly comparable
 // to Atlas `vectorSearchScore` (cosine), letting one RAG_MIN_SCORE threshold
 // work for both backends.
-async function cosineSearch(queryVector, k) {
-  const chunks = await KnowledgeChunk.find({ embedding: { $exists: true } })
+async function cosineSearch(queryVector, owner, k) {
+  const chunks = await KnowledgeChunk.find({ owner, embedding: { $exists: true } })
     .select('source sourceId title text embedding')
     .lean();
   return chunks
@@ -299,11 +324,11 @@ async function cosineSearch(queryVector, k) {
 }
 
 // Search using an already-computed query vector (avoids re-embedding when the
-// caller also needs the vector, e.g. for capability scoring).
-async function retrieveByVector(queryVector, k = 6) {
+// caller also needs the vector, e.g. for capability scoring). Owner-scoped.
+async function retrieveByVector(queryVector, owner, k = 6) {
   if (useAtlasVectorSearch) {
     try {
-      const rows = await atlasSearch(queryVector, k);
+      const rows = await atlasSearch(queryVector, owner, k);
       if (rows.length) return rows;
       // Empty result on Atlas is legitimate (e.g. nothing indexed yet) — fall
       // through to cosine only if the store actually has data.
@@ -315,16 +340,17 @@ async function retrieveByVector(queryVector, k = 6) {
       );
     }
   }
-  return cosineSearch(queryVector, k);
+  return cosineSearch(queryVector, owner, k);
 }
 
 /**
- * Return the top-k knowledge chunks most relevant to `query`.
+ * Return the top-k knowledge chunks most relevant to `query` for one owner.
+ * Re-scans the owner's live records first so answers reflect current data.
  */
-async function retrieve(query, k = 6) {
-  await ensureIndexed();
+async function retrieve(query, owner, k = 6) {
+  await reindex({ owner });
   const queryVector = await embeddings.embedOne(query, 'RETRIEVAL_QUERY');
-  return retrieveByVector(queryVector, k);
+  return retrieveByVector(queryVector, owner, k);
 }
 
 // ---------------------------------------------------------------------------
@@ -399,10 +425,15 @@ function buildHistory(history = []) {
  * Full RAG turn: retrieve context for `message`, generate a grounded answer.
  * @returns {Promise<{answer:string, sources:Array}>}
  */
-async function answer({ message, history = [] }) {
+async function answer({ message, history = [], owner }) {
   if (!enabled) {
     const e = new Error('Chat needs GEMINI_API_KEY for embeddings.');
     e.statusCode = 503;
+    throw e;
+  }
+  if (!owner) {
+    const e = new Error('Chat requires an authenticated user.');
+    e.statusCode = 401;
     throw e;
   }
 
@@ -411,13 +442,18 @@ async function answer({ message, history = [] }) {
   if (intent === 'greeting') return { answer: CANNED.greeting, sources: [], refused: false };
   if (intent === 'help') return { answer: CANNED.help, sources: [], refused: false };
 
+  // Fresh scan: re-index THIS user's current records (new RFQs/POs/invoices get
+  // picked up, deleted ones pruned) before we answer, so the chat reflects what
+  // the account actually holds right now — not a stale first-run snapshot.
+  // Incremental: unchanged records cost nothing thanks to the content-hash check.
+  await reindex({ owner });
+
   // Layer 2 — scope gate: embed the question ONCE (cheap), then judge scope from
   // three independent signals. If none fire, refuse here and SKIP the expensive
   // generation call entirely.
-  await ensureIndexed();
   const queryVector = await embeddings.embedOne(message, 'RETRIEVAL_QUERY');
   const [chunks, capScore] = await Promise.all([
-    retrieveByVector(queryVector, 6),
+    retrieveByVector(queryVector, owner, 6),
     capabilityScore(queryVector),
   ]);
   const dataScore = chunks[0]?.score ?? 0;
