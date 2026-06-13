@@ -21,12 +21,13 @@ function httpError(message, statusCode = 400) {
 
 // Open an approval task for an entity. Idempotent: if one is already pending
 // for the same entity, return it instead of creating a duplicate.
-async function openApproval({ refModel, refId, type, vendor = '—', amount = 0, requestedBy = '', priority = 'medium' }) {
+async function openApproval({ refModel, refId, type, vendor = '—', amount = 0, requestedBy = '', priority = 'medium', userId = null }) {
   const existing = await Approval.findOne({ refModel, refId, status: 'Pending' });
   if (existing) return existing;
 
   const approval = await Approval.create({ refModel, refId, type, vendor, amount, requestedBy, priority });
   await notify.record({
+    userId,
     actor: requestedBy || 'System',
     action: 'requested approval',
     entityType: refModel,
@@ -38,7 +39,7 @@ async function openApproval({ refModel, refId, type, vendor = '—', amount = 0,
 
 // Apply a decision: updates the approval AND flows the result back to the
 // underlying PO / Invoice / RFQ. This is the cross-module "connection".
-async function decide(approvalId, { decision, decidedBy = '', comment = '' }) {
+async function decide(approvalId, { decision, decidedBy = '', comment = '', userId = null }) {
   if (!['Approved', 'Rejected'].includes(decision)) {
     throw httpError('Decision must be "Approved" or "Rejected".', 422);
   }
@@ -72,6 +73,7 @@ async function decide(approvalId, { decision, decidedBy = '', comment = '' }) {
   await approval.save();
 
   await notify.record({
+    userId,
     actor: decidedBy || 'System',
     action: decision === 'Approved' ? 'approved' : 'rejected',
     entityType: approval.refModel,

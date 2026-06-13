@@ -187,12 +187,6 @@ export default function LoginPage() {
         </button>
       </form>
 
-      {/* Demo credentials hint */}
-      <div className="mt-6 p-3 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-500">
-        <span className="font-semibold text-slate-600">Demo login:</span>{" "}
-        admin@wolferp.in / admin123
-      </div>
-
       {/* Switch to signup */}
       <p className="text-center text-sm text-slate-500 mt-6">
         Don't have an account?{" "}

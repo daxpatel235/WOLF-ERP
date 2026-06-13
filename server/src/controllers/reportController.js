@@ -76,7 +76,8 @@ const spendByVendor = asyncHandler(async (_req, res) => {
 
 // GET /api/reports/activity
 const activity = asyncHandler(async (req, res) => {
-  const items = await notify.recent(Number(req.query.limit) || 12);
+  // Scope the feed to the signed-in account so it only shows their own events.
+  const items = await notify.recent(Number(req.query.limit) || 12, req.user?._id);
   res.json({ data: items.map((i) => i.toJSON()) });
 });
 

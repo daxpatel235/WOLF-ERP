@@ -316,6 +316,7 @@ const invoiceAudit = asyncHandler(async (req, res) => {
 
   // Best-effort audit trail.
   await notify.record({
+    userId: req.user?._id,
     actor: req.user?.name || 'AI',
     action: 'audited',
     entityType: 'Invoice',

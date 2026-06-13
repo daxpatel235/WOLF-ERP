@@ -51,10 +51,12 @@ const create = asyncHandler(async (req, res) => {
       amount: po.amount,
       requestedBy: po.requestedBy,
       priority: po.priority,
+      userId: req.user?._id,
     });
   }
 
   await notify.record({
+    userId: req.user?._id,
     actor: req.user?.name || 'System',
     action: 'created',
     entityType: 'PurchaseOrder',
@@ -93,6 +95,7 @@ const submit = asyncHandler(async (req, res) => {
     amount: po.amount,
     requestedBy: po.requestedBy || req.user?.name || '',
     priority: po.priority,
+    userId: req.user?._id,
   });
   res.json({ data: po.toJSON() });
 });
@@ -117,9 +120,11 @@ const setStatus = asyncHandler(async (req, res) => {
       amount: po.amount,
       requestedBy: po.requestedBy || req.user?.name || '',
       priority: po.priority,
+      userId: req.user?._id,
     });
   }
   await notify.record({
+    userId: req.user?._id,
     actor: req.user?.name || 'System',
     action: 'updated status',
     entityType: 'PurchaseOrder',

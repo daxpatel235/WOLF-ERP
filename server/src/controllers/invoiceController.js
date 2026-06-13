@@ -58,6 +58,7 @@ const create = asyncHandler(async (req, res) => {
 
   const invoice = await Invoice.create({ ...body, code, amount, createdBy: req.user?._id });
   await notify.record({
+    userId: req.user?._id,
     actor: req.user?.name || 'System',
     action: 'created',
     entityType: 'Invoice',
@@ -78,6 +79,7 @@ const setStatus = asyncHandler(async (req, res) => {
   await invoice.save();
 
   await notify.record({
+    userId: req.user?._id,
     actor: req.user?.name || 'System',
     action: 'updated status',
     entityType: 'Invoice',
@@ -110,6 +112,7 @@ const send = asyncHandler(async (req, res) => {
   await invoice.save();
 
   await notify.record({
+    userId: req.user?._id,
     actor: req.user?.name || 'System',
     action: 'sent',
     entityType: 'Invoice',

@@ -49,6 +49,7 @@ const create = asyncHandler(async (req, res) => {
 
   const quotation = await Quotation.create({ ...req.body, code, amount, rfqTitle });
   await notify.record({
+    userId: req.user?._id,
     actor: req.user?.name || quotation.vendor,
     action: 'submitted quotation',
     entityType: 'Quotation',
@@ -120,6 +121,7 @@ const award = asyncHandler(async (req, res) => {
   });
 
   await notify.record({
+    userId: req.user?._id,
     actor: req.user?.name || 'System',
     action: 'awarded',
     entityType: 'Quotation',

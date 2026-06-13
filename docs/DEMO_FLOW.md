@@ -1,6 +1,6 @@
 # Demo Flow (5 minutes)
 
-Sign in as `admin@wolferp.in` / `admin123`.
+Sign in as `manager@wolferp.in` / `manager123` (or register your own account).
 
 1. **Dashboard** — note the live stats, recent activity, and pending-approvals
    widget. The sidebar shows a badge with the pending-approval count.

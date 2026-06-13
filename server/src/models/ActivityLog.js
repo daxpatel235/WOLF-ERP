@@ -4,6 +4,10 @@ const { baseOptions } = require('../utils/schema');
 // Lightweight audit trail powering the dashboard "recent activity" feed.
 const activityLogSchema = new mongoose.Schema(
   {
+    // Account this event belongs to. The dashboard feed is scoped to the
+    // signed-in user, so each account only sees its own activity (events
+    // without a userId — e.g. seed/system entries — never surface in a feed).
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     actor: { type: String, default: 'System' }, // user name
     action: { type: String, required: true }, // 'created' | 'approved' | 'paid' | ...
     entityType: { type: String, default: '' }, // 'Vendor' | 'PurchaseOrder' | ...

@@ -52,6 +52,7 @@ const create = asyncHandler(async (req, res) => {
     createdBy: req.user?._id,
   });
   await notify.record({
+    userId: req.user?._id,
     actor: req.user?.name || 'System',
     action: 'created',
     entityType: 'RFQ',
@@ -87,6 +88,7 @@ const publish = asyncHandler(async (req, res) => {
   await Promise.all(vendors.filter((v) => v.email).map((v) => sendRFQInvite(v.email, rfq)));
 
   await notify.record({
+    userId: req.user?._id,
     actor: req.user?.name || 'System',
     action: 'published',
     entityType: 'RFQ',
@@ -108,6 +110,7 @@ const submitForApproval = asyncHandler(async (req, res) => {
     type: 'RFQ Approval',
     requestedBy: req.user?.name || '',
     priority: req.body.priority || 'medium',
+    userId: req.user?._id,
   });
   res.status(201).json({ data: approval.toJSON() });
 });

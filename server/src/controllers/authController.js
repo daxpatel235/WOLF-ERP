@@ -55,7 +55,7 @@ const register = asyncHandler(async (req, res) => {
   // loginCount starts at 1: registering auto-signs them in, so a later manual
   // login shouldn't re-trigger the first-login welcome.
   const user = await User.create({ name, email, password, role: safeRole, company, loginCount: 1 });
-  await notify.record({ actor: user.name, action: 'registered', entityType: 'User', message: `${user.name} created an account` });
+  await notify.record({ userId: user._id, actor: user.name, action: 'registered', entityType: 'User', message: `${user.name} created an account` });
 
   const token = signToken(user);
   res.status(201).json({ token, user: user.toJSON(), notice: welcomeNotice() });

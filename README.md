@@ -136,7 +136,6 @@ npm run dev        # App on http://localhost:3000
 ### Seeded demo logins (local / seeded environments only)
 | Email | Password | Role |
 |---|---|---|
-| `admin@wolferp.in` | `admin123` | Admin |
 | `manager@wolferp.in` | `manager123` | Manager |
 | `approver@wolferp.in` | `approver123` | Approver |
 

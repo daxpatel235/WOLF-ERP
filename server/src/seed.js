@@ -20,7 +20,6 @@ const Approval = require('./models/Approval');
 const ActivityLog = require('./models/ActivityLog');
 
 const users = [
-  { name: 'Dax Patel', email: 'admin@wolferp.in', password: 'admin123', role: 'admin', company: 'Wolf ERP' },
   { name: 'Sneha Rao', email: 'manager@wolferp.in', password: 'manager123', role: 'manager', company: 'Wolf ERP' },
   { name: 'Priya Desai', email: 'approver@wolferp.in', password: 'approver123', role: 'approver', company: 'Wolf ERP' },
 ];
@@ -104,7 +103,7 @@ async function seedDatabase() {
   await Approval.insertMany(approvals);
   await ActivityLog.create({ actor: 'System', action: 'seeded', message: 'Demo data loaded' });
 
-  logger.info('Seed complete! Login: admin@wolferp.in / admin123 (also manager@ / manager123, approver@ / approver123)');
+  logger.info('Seed complete! Login: manager@wolferp.in / manager123 (also approver@wolferp.in / approver123)');
 }
 
 // CLI entry point: `npm run seed`

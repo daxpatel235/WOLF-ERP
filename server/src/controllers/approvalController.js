@@ -36,6 +36,7 @@ const decide = asyncHandler(async (req, res) => {
     decision,
     decidedBy: req.user?.name || '',
     comment,
+    userId: req.user?._id,
   });
   res.json({ data: approval.toJSON(), entity: entity ? entity.toJSON() : null });
 });

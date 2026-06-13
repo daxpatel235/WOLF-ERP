@@ -68,6 +68,7 @@ const create = asyncHandler(async (req, res) => {
     createdBy: req.user?._id,
   });
   await notify.record({
+    userId: req.user?._id,
     actor: req.user?.name || 'System',
     action: 'created',
     entityType: 'Vendor',
