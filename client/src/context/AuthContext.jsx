@@ -39,10 +39,16 @@ export function AuthProvider({ children }) {
     authApi
       .me()
       .then((res) => setUser(res.user))
-      .catch(() => {
-        // Token invalid/expired — drop it.
-        clearSession();
-        setUser(null);
+      .catch((err) => {
+        // Only drop the session when the server actively rejects the token
+        // (401 invalid/expired, 403 inactive account). A network failure
+        // (status 0) or a server cold-start/5xx — common on free-tier hosting
+        // that sleeps when idle — must NOT wipe a valid "remember me" session.
+        // Keep the hydrated user; the next authenticated request will retry.
+        if (err?.status === 401 || err?.status === 403) {
+          clearSession();
+          setUser(null);
+        }
       })
       .finally(() => setLoading(false));
   }, []);
