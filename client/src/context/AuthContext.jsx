@@ -36,6 +36,12 @@ export function AuthProvider({ children }) {
       return;
     }
 
+    // We already have a cached user — render the app immediately and verify the
+    // token in the BACKGROUND. This is the key to a fast load: we don't make the
+    // user stare at a spinner while a (possibly cold-starting) backend answers
+    // /auth/me. We only block when there's a token but no cached user to show.
+    if (stored) setLoading(false);
+
     authApi
       .me()
       .then((res) => setUser(res.user))
