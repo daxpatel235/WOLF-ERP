@@ -3,7 +3,7 @@
 import { createContext, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api";
-import { saveSession, clearSession, getStoredUser, setAuthCookie } from "@/lib/utils";
+import { saveSession, clearSession, getStoredUser, setAuthCookie, isTokenExpired } from "@/lib/utils";
 import { TOKEN_KEY } from "@/lib/constants";
 
 export const AuthContext = createContext(null);
@@ -23,33 +23,33 @@ export function AuthProvider({ children }) {
 
   // Hydrate from storage on mount, then verify the token with the server.
   useEffect(() => {
-    const stored = getStoredUser();
-    if (stored) setUser(stored);
-
     const token =
       typeof window !== "undefined"
         ? localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY)
         : null;
 
-    // Backfill the middleware cookie for sessions created before it existed,
-    // so the edge redirect works without requiring a fresh login. Persistent
-    // if the token lives in localStorage ("remember me"), session-scoped if not.
-    if (stored && token) {
-      const remembered =
-        typeof window !== "undefined" && !!localStorage.getItem(TOKEN_KEY);
-      setAuthCookie(stored, remembered);
-    }
-
-    if (!token) {
+    // The session is cached on this device, but we honour the 15-day rule:
+    // no token, or one whose 15-day window has lapsed → wipe the stale cache
+    // (storage + cookie) and start cleanly logged out. Doing this BEFORE we
+    // trust the cached user prevents half-logged-in states (and the
+    // landing-page flash) from an old session lingering in storage.
+    if (!token || isTokenExpired(token)) {
+      if (token) clearSession();
       setLoading(false);
       return;
     }
 
-    // We already have a cached user — render the app immediately and verify the
-    // token in the BACKGROUND. This is the key to a fast load: we don't make the
-    // user stare at a spinner while a (possibly cold-starting) backend answers
-    // /auth/me. We only block when there's a token but no cached user to show.
-    if (stored) setLoading(false);
+    const stored = getStoredUser();
+    if (stored) {
+      setUser(stored);
+      // Refresh the middleware cookie (sliding 15-day window) so the edge
+      // redirect keeps working for active users and backfills older sessions.
+      const remembered =
+        typeof window !== "undefined" && !!localStorage.getItem(TOKEN_KEY);
+      setAuthCookie(stored, remembered);
+      // Render immediately from cache; verify in the background (fast load).
+      setLoading(false);
+    }
 
     authApi
       .me()

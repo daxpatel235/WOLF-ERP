@@ -45,6 +45,22 @@ export function clearSession() {
   clearAuthCookie();
 }
 
+// Is this JWT past its expiry? We read the `exp` claim (no signature check —
+// the server still validates for real) purely to decide, on the device,
+// whether the cached session is still within the 15-day window. A malformed
+// token counts as expired so we clean it up. This is what enforces "keep the
+// session on this device, but wipe it once the 15-day rule lapses".
+export function isTokenExpired(token) {
+  if (!token) return true;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    if (!payload.exp) return false; // no expiry claim → treat as long-lived
+    return payload.exp * 1000 <= Date.now();
+  } catch {
+    return true; // unreadable → treat as expired so we clear it
+  }
+}
+
 export function getStoredUser() {
   if (typeof window === "undefined") return null;
   const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
