@@ -22,10 +22,10 @@ function httpError(message, statusCode = 400) {
 // Open an approval task for an entity. Idempotent: if one is already pending
 // for the same entity, return it instead of creating a duplicate.
 async function openApproval({ refModel, refId, type, vendor = '—', amount = 0, requestedBy = '', priority = 'medium', userId = null }) {
-  const existing = await Approval.findOne({ refModel, refId, status: 'Pending' });
+  const existing = await Approval.findOne({ refModel, refId, status: 'Pending', createdBy: userId });
   if (existing) return existing;
 
-  const approval = await Approval.create({ refModel, refId, type, vendor, amount, requestedBy, priority });
+  const approval = await Approval.create({ refModel, refId, type, vendor, amount, requestedBy, priority, createdBy: userId });
   await notify.record({
     userId,
     actor: requestedBy || 'System',
@@ -44,17 +44,20 @@ async function decide(approvalId, { decision, decidedBy = '', comment = '', user
     throw httpError('Decision must be "Approved" or "Rejected".', 422);
   }
 
-  const approval = await Approval.findById(approvalId);
+  // Scope to the owner's account: you can only decide your own approvals.
+  const approval = userId
+    ? await Approval.findOne({ _id: approvalId, createdBy: userId })
+    : await Approval.findById(approvalId);
   if (!approval) throw httpError('Approval not found.', 404);
   if (approval.status !== 'Pending') {
     throw httpError(`This item was already ${approval.status.toLowerCase()}.`, 409);
   }
 
-  // Flow the decision to the source entity.
+  // Flow the decision to the source entity (same owner).
   const Model = MODELS[approval.refModel];
   let entity = null;
   if (Model) {
-    entity = await Model.findOne({ code: approval.refId });
+    entity = await Model.findOne({ code: approval.refId, createdBy: approval.createdBy });
     const nextStatus = TRANSITIONS[approval.refModel]?.[decision];
     if (entity && nextStatus) {
       entity.status = nextStatus;

@@ -87,7 +87,7 @@ const comparisonInsight = asyncHandler(async (req, res) => {
   const rfqId = (req.body.rfqId || '').trim();
   if (!rfqId) return res.status(422).json({ message: 'rfqId is required.' });
 
-  const cmp = await compareRfq(rfqId);
+  const cmp = await compareRfq(rfqId, req.user._id);
   if (!cmp.vendors.length) {
     return res.status(404).json({ message: 'No quotations to analyse for this RFQ.' });
   }
@@ -108,16 +108,17 @@ const comparisonInsight = asyncHandler(async (req, res) => {
 
 // GET /api/ai/reports/summary
 // Plain-English executive summary of current procurement KPIs.
-const reportSummary = asyncHandler(async (_req, res) => {
+const reportSummary = asyncHandler(async (req, res) => {
+  const owner = req.user._id;
   const SPENDABLE = ['Approved', 'Sent', 'Received'];
   const [vendors, activeVendors, rfqs, openRfqs, pos, invoices, topVendors] = await Promise.all([
-    Vendor.countDocuments(),
-    Vendor.countDocuments({ status: 'Active' }),
-    RFQ.countDocuments(),
-    RFQ.countDocuments({ status: 'Published' }),
-    PurchaseOrder.find().select('amount status vendorId vendor').lean(),
-    Invoice.find().select('amount amountPaid status').lean(),
-    PurchaseOrder.find({ status: { $in: SPENDABLE } }).select('vendor amount').lean(),
+    Vendor.countDocuments({ createdBy: owner }),
+    Vendor.countDocuments({ createdBy: owner, status: 'Active' }),
+    RFQ.countDocuments({ createdBy: owner }),
+    RFQ.countDocuments({ createdBy: owner, status: 'Published' }),
+    PurchaseOrder.find({ createdBy: owner }).select('amount status vendorId vendor').lean(),
+    Invoice.find({ createdBy: owner }).select('amount amountPaid status').lean(),
+    PurchaseOrder.find({ createdBy: owner, status: { $in: SPENDABLE } }).select('vendor amount').lean(),
   ]);
 
   const totalSpend = pos.filter((p) => SPENDABLE.includes(p.status)).reduce((t, p) => t + (p.amount || 0), 0);
@@ -210,14 +211,15 @@ const extractDocument = asyncHandler(async (req, res) => {
 // GET /api/ai/vendors/:id/risk
 // Score a vendor's reliability/risk from their history.
 const vendorRisk = asyncHandler(async (req, res) => {
-  const vendor = await Vendor.findOne({ code: req.params.id });
+  const owner = req.user._id;
+  const vendor = await Vendor.findOne({ code: req.params.id, createdBy: owner });
   if (!vendor) return res.status(404).json({ message: 'Vendor not found.' });
 
   const [quotes, pos, invoices, activity] = await Promise.all([
-    Quotation.find({ vendorId: vendor.code }).select('amount deliveryDays status submitted').lean(),
-    PurchaseOrder.find({ vendorId: vendor.code }).select('amount status created delivery').lean(),
-    Invoice.find({ vendorId: vendor.code }).select('amount amountPaid status due').lean(),
-    ActivityLog.find({ entityType: 'Vendor', entityId: vendor.code }).select('action message createdAt').sort({ createdAt: -1 }).limit(20).lean(),
+    Quotation.find({ vendorId: vendor.code, createdBy: owner }).select('amount deliveryDays status submitted').lean(),
+    PurchaseOrder.find({ vendorId: vendor.code, createdBy: owner }).select('amount status created delivery').lean(),
+    Invoice.find({ vendorId: vendor.code, createdBy: owner }).select('amount amountPaid status due').lean(),
+    ActivityLog.find({ userId: owner, entityType: 'Vendor', entityId: vendor.code }).select('action message createdAt').sort({ createdAt: -1 }).limit(20).lean(),
   ]);
 
   const profile = {
@@ -257,14 +259,16 @@ const vendorRisk = asyncHandler(async (req, res) => {
 // GET /api/ai/invoices/:id/audit
 // 3-way match (invoice vs PO) + duplicate detection.
 const invoiceAudit = asyncHandler(async (req, res) => {
-  const invoice = await Invoice.findOne({ code: req.params.id });
+  const owner = req.user._id;
+  const invoice = await Invoice.findOne({ code: req.params.id, createdBy: owner });
   if (!invoice) return res.status(404).json({ message: 'Invoice not found.' });
 
-  const po = invoice.poId ? await PurchaseOrder.findOne({ code: invoice.poId }).lean() : null;
+  const po = invoice.poId ? await PurchaseOrder.findOne({ code: invoice.poId, createdBy: owner }).lean() : null;
 
   // Cheap duplicate heuristic: same vendor + amount on a different invoice.
   const possibleDuplicates = await Invoice.find({
     code: { $ne: invoice.code },
+    createdBy: owner,
     vendorId: invoice.vendorId,
     amount: invoice.amount,
   }).select('code issued status').lean();

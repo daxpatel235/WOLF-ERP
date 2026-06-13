@@ -10,7 +10,7 @@ const notify = require('../services/notificationService');
 // GET /api/quotations
 const list = asyncHandler(async (req, res) => {
   const { q, status, rfqId, vendorId } = req.query;
-  const filter = {};
+  const filter = { createdBy: req.user._id };
   if (status && status !== 'All') filter.status = status;
   if (rfqId) filter.rfqId = rfqId;
   if (vendorId) filter.vendorId = vendorId;
@@ -24,12 +24,12 @@ const list = asyncHandler(async (req, res) => {
 const compare = asyncHandler(async (req, res) => {
   const { rfqId } = req.query;
   if (!rfqId) return res.status(400).json({ message: 'rfqId query parameter is required.' });
-  res.json({ data: await compareRfq(rfqId) });
+  res.json({ data: await compareRfq(rfqId, req.user._id) });
 });
 
 // GET /api/quotations/:id
 const getOne = asyncHandler(async (req, res) => {
-  const quotation = await Quotation.findOne({ code: req.params.id });
+  const quotation = await Quotation.findOne({ code: req.params.id, createdBy: req.user._id });
   if (!quotation) return res.status(404).json({ message: 'Quotation not found.' });
   res.json({ data: quotation.toJSON() });
 });
@@ -43,11 +43,11 @@ const create = asyncHandler(async (req, res) => {
   // Denormalize the RFQ title for display if we can find it.
   let rfqTitle = req.body.rfqTitle || '';
   if (req.body.rfqId && !rfqTitle) {
-    const rfq = await RFQ.findOne({ code: req.body.rfqId }).select('title');
+    const rfq = await RFQ.findOne({ code: req.body.rfqId, createdBy: req.user._id }).select('title');
     rfqTitle = rfq?.title || '';
   }
 
-  const quotation = await Quotation.create({ ...req.body, code, amount, rfqTitle });
+  const quotation = await Quotation.create({ ...req.body, code, amount, rfqTitle, createdBy: req.user._id });
   await notify.record({
     userId: req.user?._id,
     actor: req.user?.name || quotation.vendor,
@@ -62,7 +62,7 @@ const create = asyncHandler(async (req, res) => {
 // POST /api/quotations/:id/shortlist
 const shortlist = asyncHandler(async (req, res) => {
   const quotation = await Quotation.findOneAndUpdate(
-    { code: req.params.id },
+    { code: req.params.id, createdBy: req.user._id },
     { status: 'Shortlisted' },
     { new: true }
   );
@@ -77,7 +77,7 @@ const setStatus = asyncHandler(async (req, res) => {
     return res.status(422).json({ message: 'Invalid quotation status.' });
   }
   const quotation = await Quotation.findOneAndUpdate(
-    { code: req.params.id },
+    { code: req.params.id, createdBy: req.user._id },
     { status: req.body.status },
     { new: true }
   );
@@ -88,7 +88,7 @@ const setStatus = asyncHandler(async (req, res) => {
 // POST /api/quotations/:id/award
 // Awards the quote, marks the RFQ Awarded, and drafts a Purchase Order from it.
 const award = asyncHandler(async (req, res) => {
-  const quotation = await Quotation.findOne({ code: req.params.id });
+  const quotation = await Quotation.findOne({ code: req.params.id, createdBy: req.user._id });
   if (!quotation) return res.status(404).json({ message: 'Quotation not found.' });
 
   quotation.status = 'Awarded';
@@ -96,11 +96,11 @@ const award = asyncHandler(async (req, res) => {
 
   // Mark sibling quotations on the same RFQ as rejected, and the RFQ as Awarded.
   await Quotation.updateMany(
-    { rfqId: quotation.rfqId, _id: { $ne: quotation._id }, status: { $ne: 'Awarded' } },
+    { rfqId: quotation.rfqId, _id: { $ne: quotation._id }, status: { $ne: 'Awarded' }, createdBy: req.user._id },
     { status: 'Rejected' }
   );
   if (quotation.rfqId) {
-    await RFQ.findOneAndUpdate({ code: quotation.rfqId }, { status: 'Awarded' });
+    await RFQ.findOneAndUpdate({ code: quotation.rfqId, createdBy: req.user._id }, { status: 'Awarded' });
   }
 
   // Create a draft PO from the winning quotation.

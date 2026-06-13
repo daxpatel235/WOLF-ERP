@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const path = require('path');
 
 const env = require('./config/env');
@@ -9,6 +10,9 @@ const { notFound, errorHandler } = require('./middleware/errorHandler');
 const app = express();
 
 // ---- Core middleware ----
+// Security headers. crossOriginResourcePolicy relaxed so the separate frontend
+// origin can still load /uploads assets.
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({ origin: env.CLIENT_URL === '*' ? true : [env.CLIENT_URL, 'http://localhost:3000'], credentials: true }));
 app.use(express.json({ limit: '10mb' })); // 10mb headroom for base64 images sent to the AI extractor
 app.use(express.urlencoded({ extended: true }));

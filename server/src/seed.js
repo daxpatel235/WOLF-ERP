@@ -9,6 +9,7 @@ dotenv.config({ path: path.join(__dirname, '..', '.env') });
 const mongoose = require('mongoose');
 const connectDB = require('./config/db');
 const logger = require('./utils/logger');
+const env = require('./config/env');
 
 const User = require('./models/User');
 const Vendor = require('./models/Vendor');
@@ -94,14 +95,33 @@ async function seedDatabase() {
   logger.info('Seeding users...');
   for (const u of users) await User.create(u);
 
+  // Optional admin (only when SEED_ADMIN_EMAIL + SEED_ADMIN_PASSWORD are set).
+  if (env.SEED_ADMIN_EMAIL && env.SEED_ADMIN_PASSWORD) {
+    await User.create({
+      name: env.SEED_ADMIN_NAME,
+      email: env.SEED_ADMIN_EMAIL,
+      password: env.SEED_ADMIN_PASSWORD,
+      role: 'admin',
+      company: 'Wolf ERP',
+    });
+    logger.info(`Seeded admin account: ${env.SEED_ADMIN_EMAIL}`);
+  }
+
+  // The demo workspace belongs to one account (the manager). Data is now
+  // per-account, so every seeded record is owned by them; brand-new sign-ups
+  // start with an empty workspace of their own.
+  const owner = await User.findOne({ email: 'manager@wolferp.in' });
+  const ownerId = owner ? owner._id : undefined;
+  const own = (arr) => arr.map((r) => ({ ...r, createdBy: ownerId }));
+
   logger.info('Seeding business data...');
-  await Vendor.insertMany(vendors);
-  await RFQ.insertMany(rfqs);
-  await Quotation.insertMany(quotations);
-  await PurchaseOrder.insertMany(purchaseOrders);
-  await Invoice.insertMany(invoices);
-  await Approval.insertMany(approvals);
-  await ActivityLog.create({ actor: 'System', action: 'seeded', message: 'Demo data loaded' });
+  await Vendor.insertMany(own(vendors));
+  await RFQ.insertMany(own(rfqs));
+  await Quotation.insertMany(own(quotations));
+  await PurchaseOrder.insertMany(own(purchaseOrders));
+  await Invoice.insertMany(own(invoices));
+  await Approval.insertMany(own(approvals));
+  await ActivityLog.create({ userId: ownerId, actor: 'System', action: 'seeded', message: 'Demo data loaded' });
 
   logger.info('Seed complete! Login: manager@wolferp.in / manager123 (also approver@wolferp.in / approver123)');
 }

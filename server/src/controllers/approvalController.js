@@ -5,7 +5,7 @@ const approvalEngine = require('../services/approvalEngine');
 // GET /api/approvals?status=Pending
 const list = asyncHandler(async (req, res) => {
   const { status } = req.query;
-  const filter = {};
+  const filter = { createdBy: req.user._id };
   if (status && status !== 'All') filter.status = status;
 
   const approvals = await Approval.find(filter).sort({ date: -1 });
@@ -23,8 +23,8 @@ const list = asyncHandler(async (req, res) => {
 });
 
 // GET /api/approvals/count  (for the sidebar badge)
-const count = asyncHandler(async (_req, res) => {
-  const pending = await Approval.countDocuments({ status: 'Pending' });
+const count = asyncHandler(async (req, res) => {
+  const pending = await Approval.countDocuments({ status: 'Pending', createdBy: req.user._id });
   res.json({ pending });
 });
 

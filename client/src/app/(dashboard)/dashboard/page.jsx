@@ -155,7 +155,7 @@ export default function DashboardPage() {
               <p className="text-sm text-slate-500 mt-0.5">Latest procurement events</p>
             </div>
             <Link
-              href="/reports"
+              href="/activity"
               className="text-sm font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
             >
               View all <ArrowUpRight size={14} />
@@ -174,9 +174,9 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-slate-900">{item.message || item.action}</p>
-                      <p className="text-sm text-slate-500 mt-0.5 truncate">
-                        {item.actor}
-                        {item.entityId ? ` · ${item.entityId}` : ""}
+                      <p className="text-sm text-slate-500 mt-0.5 truncate capitalize">
+                        {item.action}
+                        {item.entityId ? ` · ${item.entityId}` : item.entityType ? ` · ${item.entityType}` : ""}
                       </p>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-slate-400 whitespace-nowrap">

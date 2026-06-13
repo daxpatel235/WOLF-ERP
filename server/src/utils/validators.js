@@ -6,6 +6,10 @@ const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/;
 const isEmail = (v) => typeof v === 'string' && EMAIL_RE.test(v.trim());
 const isGSTIN = (v) => typeof v === 'string' && GSTIN_RE.test(v.trim().toUpperCase());
 const isNonEmpty = (v) => v !== undefined && v !== null && String(v).trim() !== '';
+// Strong password: ≥8 chars, at least one uppercase letter and one digit.
+// Mirrors the client-side register form so both gates agree.
+const isStrongPassword = (v) =>
+  typeof v === 'string' && v.length >= 8 && /[A-Z]/.test(v) && /[0-9]/.test(v);
 const isPositiveNumber = (v) =>
   typeof v === 'number' ? v > 0 : isNonEmpty(v) && Number(v) > 0;
 
@@ -24,4 +28,4 @@ function check(payload, rules) {
   return errors;
 }
 
-module.exports = { isEmail, isGSTIN, isNonEmpty, isPositiveNumber, check, EMAIL_RE };
+module.exports = { isEmail, isGSTIN, isNonEmpty, isStrongPassword, isPositiveNumber, check, EMAIL_RE };

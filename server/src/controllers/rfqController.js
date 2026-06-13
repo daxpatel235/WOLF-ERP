@@ -8,9 +8,9 @@ const { openApproval } = require('../services/approvalEngine');
 const { sendRFQInvite } = require('../services/emailService');
 
 // Attach the live "received" count (quotations) to an RFQ JSON object.
-async function withCounts(rfqDocs) {
+async function withCounts(rfqDocs, owner) {
   const codes = rfqDocs.map((r) => r.code);
-  const quotes = await Quotation.find({ rfqId: { $in: codes } }).select('rfqId').lean();
+  const quotes = await Quotation.find({ rfqId: { $in: codes }, createdBy: owner }).select('rfqId').lean();
   const received = {};
   quotes.forEach((q) => (received[q.rfqId] = (received[q.rfqId] || 0) + 1));
   return rfqDocs.map((r) => ({
@@ -23,23 +23,23 @@ async function withCounts(rfqDocs) {
 // GET /api/rfqs
 const list = asyncHandler(async (req, res) => {
   const { q, status, category } = req.query;
-  const filter = {};
+  const filter = { createdBy: req.user._id };
   if (status && status !== 'All') filter.status = status;
   if (category && category !== 'All') filter.category = category;
   if (q) filter.$or = [{ title: new RegExp(q, 'i') }, { code: new RegExp(q, 'i') }];
 
   const rfqs = await RFQ.find(filter).sort({ created: -1 });
-  const data = await withCounts(rfqs);
+  const data = await withCounts(rfqs, req.user._id);
   res.json({ data, count: data.length });
 });
 
 // GET /api/rfqs/:id  (includes its quotations)
 const getOne = asyncHandler(async (req, res) => {
-  const rfq = await RFQ.findOne({ code: req.params.id });
+  const rfq = await RFQ.findOne({ code: req.params.id, createdBy: req.user._id });
   if (!rfq) return res.status(404).json({ message: 'RFQ not found.' });
 
-  const quotations = await Quotation.find({ rfqId: rfq.code }).sort({ amount: 1 });
-  const [data] = await withCounts([rfq]);
+  const quotations = await Quotation.find({ rfqId: rfq.code, createdBy: req.user._id }).sort({ amount: 1 });
+  const [data] = await withCounts([rfq], req.user._id);
   res.json({ data, quotations: quotations.map((q) => q.toJSON()) });
 });
 
@@ -64,27 +64,27 @@ const create = asyncHandler(async (req, res) => {
 
 // PUT /api/rfqs/:id
 const update = asyncHandler(async (req, res) => {
-  const rfq = await RFQ.findOne({ code: req.params.id });
+  const rfq = await RFQ.findOne({ code: req.params.id, createdBy: req.user._id });
   if (!rfq) return res.status(404).json({ message: 'RFQ not found.' });
   const allowed = ['title', 'category', 'status', 'due', 'invitedVendors', 'items', 'notes'];
   allowed.forEach((f) => {
     if (req.body[f] !== undefined) rfq[f] = req.body[f];
   });
   await rfq.save();
-  const [data] = await withCounts([rfq]);
+  const [data] = await withCounts([rfq], req.user._id);
   res.json({ data });
 });
 
 // POST /api/rfqs/:id/publish  → status Published + email invited vendors
 const publish = asyncHandler(async (req, res) => {
-  const rfq = await RFQ.findOne({ code: req.params.id });
+  const rfq = await RFQ.findOne({ code: req.params.id, createdBy: req.user._id });
   if (!rfq) return res.status(404).json({ message: 'RFQ not found.' });
 
   rfq.status = 'Published';
   await rfq.save();
 
   // Best-effort invitations.
-  const vendors = await Vendor.find({ code: { $in: rfq.invitedVendors || [] } }).select('email');
+  const vendors = await Vendor.find({ code: { $in: rfq.invitedVendors || [] }, createdBy: req.user._id }).select('email');
   await Promise.all(vendors.filter((v) => v.email).map((v) => sendRFQInvite(v.email, rfq)));
 
   await notify.record({
@@ -95,13 +95,13 @@ const publish = asyncHandler(async (req, res) => {
     entityId: rfq.code,
     message: `RFQ ${rfq.code} published to ${vendors.length} vendor(s)`,
   });
-  const [data] = await withCounts([rfq]);
+  const [data] = await withCounts([rfq], req.user._id);
   res.json({ data });
 });
 
 // POST /api/rfqs/:id/submit  → open an approval task
 const submitForApproval = asyncHandler(async (req, res) => {
-  const rfq = await RFQ.findOne({ code: req.params.id });
+  const rfq = await RFQ.findOne({ code: req.params.id, createdBy: req.user._id });
   if (!rfq) return res.status(404).json({ message: 'RFQ not found.' });
 
   const approval = await openApproval({

@@ -27,6 +27,7 @@ const approvalSchema = new mongoose.Schema(
     decidedBy: { type: String, default: '' },
     decidedAt: { type: Date },
     comment: { type: String, default: '' },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   },
   baseOptions()
 );

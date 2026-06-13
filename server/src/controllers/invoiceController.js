@@ -21,7 +21,7 @@ function reconcileStatus(invoice) {
 // GET /api/invoices
 const list = asyncHandler(async (req, res) => {
   const { q, status, vendorId, poId } = req.query;
-  const filter = {};
+  const filter = { createdBy: req.user._id };
   if (status && status !== 'All') filter.status = status;
   if (vendorId) filter.vendorId = vendorId;
   if (poId) filter.poId = poId;
@@ -33,7 +33,7 @@ const list = asyncHandler(async (req, res) => {
 
 // GET /api/invoices/:id
 const getOne = asyncHandler(async (req, res) => {
-  const invoice = await Invoice.findOne({ code: req.params.id });
+  const invoice = await Invoice.findOne({ code: req.params.id, createdBy: req.user._id });
   if (!invoice) return res.status(404).json({ message: 'Invoice not found.' });
   res.json({ data: invoice.toJSON() });
 });
@@ -45,7 +45,7 @@ const create = asyncHandler(async (req, res) => {
 
   // If linked to a PO and fields are missing, pull them from the PO.
   if (body.poId) {
-    const po = await PurchaseOrder.findOne({ code: body.poId });
+    const po = await PurchaseOrder.findOne({ code: body.poId, createdBy: req.user._id });
     if (po) {
       body.vendor = body.vendor || po.vendor;
       body.vendorId = body.vendorId || po.vendorId;
@@ -70,7 +70,7 @@ const create = asyncHandler(async (req, res) => {
 
 // POST /api/invoices/:id/status { status, amountPaid }
 const setStatus = asyncHandler(async (req, res) => {
-  const invoice = await Invoice.findOne({ code: req.params.id });
+  const invoice = await Invoice.findOne({ code: req.params.id, createdBy: req.user._id });
   if (!invoice) return res.status(404).json({ message: 'Invoice not found.' });
 
   if (req.body.amountPaid !== undefined) invoice.amountPaid = Number(req.body.amountPaid) || 0;
@@ -91,7 +91,7 @@ const setStatus = asyncHandler(async (req, res) => {
 
 // POST /api/invoices/:id/pay  (record a full or partial payment)
 const recordPayment = asyncHandler(async (req, res) => {
-  const invoice = await Invoice.findOne({ code: req.params.id });
+  const invoice = await Invoice.findOne({ code: req.params.id, createdBy: req.user._id });
   if (!invoice) return res.status(404).json({ message: 'Invoice not found.' });
 
   const amount = Number(req.body.amount);
@@ -103,7 +103,7 @@ const recordPayment = asyncHandler(async (req, res) => {
 
 // POST /api/invoices/:id/send  (email + mark Sent)
 const send = asyncHandler(async (req, res) => {
-  const invoice = await Invoice.findOne({ code: req.params.id });
+  const invoice = await Invoice.findOne({ code: req.params.id, createdBy: req.user._id });
   if (!invoice) return res.status(404).json({ message: 'Invoice not found.' });
 
   const to = req.body.to || req.body.email;

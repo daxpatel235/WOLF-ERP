@@ -141,6 +141,16 @@ npm run dev        # App on http://localhost:3000
 
 > These exist only after seeding. On the **live demo**, register your own account instead.
 
+**Per-account workspaces.** Each account sees only its own data — vendors, RFQs,
+quotations, POs, invoices, approvals, reports, and activity are all scoped to the
+signed-in user. The seeded demo data belongs to `manager@wolferp.in`; a freshly
+registered account starts with an empty workspace. Approvals are decided within
+your own workspace (roles still apply: buyers can't approve).
+
+**Admins.** Self-registration only creates non-admin roles. To get an admin, set
+`SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` before seeding, or promote an existing
+user: `cd server && npm run make-admin -- you@example.com`.
+
 ---
 
 ## ☁️ Deployment

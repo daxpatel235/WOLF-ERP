@@ -18,6 +18,7 @@ const quotationSchema = new mongoose.Schema(
     },
     submitted: { type: Date, default: Date.now },
     items: { type: [lineItemFields], default: [] },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   },
   baseOptions()
 );

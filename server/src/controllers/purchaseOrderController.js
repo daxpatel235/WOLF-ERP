@@ -9,7 +9,7 @@ const notify = require('../services/notificationService');
 // GET /api/purchase-orders
 const list = asyncHandler(async (req, res) => {
   const { q, status, vendorId, priority } = req.query;
-  const filter = {};
+  const filter = { createdBy: req.user._id };
   if (status && status !== 'All') filter.status = status;
   if (vendorId) filter.vendorId = vendorId;
   if (priority) filter.priority = priority;
@@ -21,9 +21,9 @@ const list = asyncHandler(async (req, res) => {
 
 // GET /api/purchase-orders/:id
 const getOne = asyncHandler(async (req, res) => {
-  const po = await PurchaseOrder.findOne({ code: req.params.id });
+  const po = await PurchaseOrder.findOne({ code: req.params.id, createdBy: req.user._id });
   if (!po) return res.status(404).json({ message: 'Purchase order not found.' });
-  const invoices = await Invoice.find({ poId: po.code }).sort({ issued: -1 });
+  const invoices = await Invoice.find({ poId: po.code, createdBy: req.user._id }).sort({ issued: -1 });
   res.json({ data: po.toJSON(), invoices: invoices.map((i) => i.toJSON()) });
 });
 
@@ -68,7 +68,7 @@ const create = asyncHandler(async (req, res) => {
 
 // PUT /api/purchase-orders/:id
 const update = asyncHandler(async (req, res) => {
-  const po = await PurchaseOrder.findOne({ code: req.params.id });
+  const po = await PurchaseOrder.findOne({ code: req.params.id, createdBy: req.user._id });
   if (!po) return res.status(404).json({ message: 'Purchase order not found.' });
 
   const allowed = ['vendor', 'vendorId', 'priority', 'delivery', 'items', 'notes', 'amount'];
@@ -82,7 +82,7 @@ const update = asyncHandler(async (req, res) => {
 
 // POST /api/purchase-orders/:id/submit → Pending Approval + approval task
 const submit = asyncHandler(async (req, res) => {
-  const po = await PurchaseOrder.findOne({ code: req.params.id });
+  const po = await PurchaseOrder.findOne({ code: req.params.id, createdBy: req.user._id });
   if (!po) return res.status(404).json({ message: 'Purchase order not found.' });
 
   po.status = 'Pending Approval';
@@ -106,7 +106,7 @@ const setStatus = asyncHandler(async (req, res) => {
   const valid = ['Draft', 'Pending Approval', 'Approved', 'Sent', 'Received', 'Cancelled', 'Rejected'];
   if (!valid.includes(status)) return res.status(422).json({ message: 'Invalid status.' });
 
-  const po = await PurchaseOrder.findOne({ code: req.params.id });
+  const po = await PurchaseOrder.findOne({ code: req.params.id, createdBy: req.user._id });
   if (!po) return res.status(404).json({ message: 'Purchase order not found.' });
   po.status = status;
   await po.save();

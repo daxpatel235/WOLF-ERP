@@ -8,6 +8,13 @@ const env = {
   MONGO_URI: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/wolf_erp',
 
   JWT_SECRET: process.env.JWT_SECRET || 'dev_only_change_me_super_secret_key',
+
+  // Optional seed admin. Self-registration can't create admins, so set these
+  // (in server/.env or the host dashboard) to get one admin account on seed.
+  // Leave unset to seed no admin at all.
+  SEED_ADMIN_EMAIL: process.env.SEED_ADMIN_EMAIL || '',
+  SEED_ADMIN_PASSWORD: process.env.SEED_ADMIN_PASSWORD || '',
+  SEED_ADMIN_NAME: process.env.SEED_ADMIN_NAME || 'Admin',
   // "Remember me" keeps a session alive for 15 days; after that the token
   // expires and the user lands back on the marketing page and must sign in
   // again. (The data wipe is separate — see CLEANUP_INACTIVE_DAYS, 30 days.)

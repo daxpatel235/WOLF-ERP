@@ -9,15 +9,16 @@ const notify = require('../services/notificationService');
 const SPENDABLE = ['Approved', 'Sent', 'Received'];
 
 // GET /api/reports/summary  — headline numbers for the dashboard.
-const summary = asyncHandler(async (_req, res) => {
+const summary = asyncHandler(async (req, res) => {
+  const owner = req.user._id;
   const [vendors, activeVendors, rfqs, openRfqs, pos, invoices, pendingApprovals] = await Promise.all([
-    Vendor.countDocuments(),
-    Vendor.countDocuments({ status: 'Active' }),
-    RFQ.countDocuments(),
-    RFQ.countDocuments({ status: 'Published' }),
-    PurchaseOrder.find().select('amount status').lean(),
-    Invoice.find().select('amount amountPaid status').lean(),
-    Approval.countDocuments({ status: 'Pending' }),
+    Vendor.countDocuments({ createdBy: owner }),
+    Vendor.countDocuments({ createdBy: owner, status: 'Active' }),
+    RFQ.countDocuments({ createdBy: owner }),
+    RFQ.countDocuments({ createdBy: owner, status: 'Published' }),
+    PurchaseOrder.find({ createdBy: owner }).select('amount status').lean(),
+    Invoice.find({ createdBy: owner }).select('amount amountPaid status').lean(),
+    Approval.countDocuments({ createdBy: owner, status: 'Pending' }),
   ]);
 
   const totalSpend = pos
@@ -40,11 +41,12 @@ const summary = asyncHandler(async (_req, res) => {
 });
 
 // GET /api/reports/spend-by-category
-const spendByCategory = asyncHandler(async (_req, res) => {
+const spendByCategory = asyncHandler(async (req, res) => {
+  const owner = req.user._id;
   // Map vendorId -> category, then bucket PO spend by it.
   const [vendors, pos] = await Promise.all([
-    Vendor.find().select('code category').lean(),
-    PurchaseOrder.find({ status: { $in: SPENDABLE } }).select('vendorId amount').lean(),
+    Vendor.find({ createdBy: owner }).select('code category').lean(),
+    PurchaseOrder.find({ createdBy: owner, status: { $in: SPENDABLE } }).select('vendorId amount').lean(),
   ]);
   const catOf = Object.fromEntries(vendors.map((v) => [v.code, v.category || 'Other']));
   const buckets = {};
@@ -59,8 +61,8 @@ const spendByCategory = asyncHandler(async (_req, res) => {
 });
 
 // GET /api/reports/spend-by-vendor
-const spendByVendor = asyncHandler(async (_req, res) => {
-  const pos = await PurchaseOrder.find({ status: { $in: SPENDABLE } })
+const spendByVendor = asyncHandler(async (req, res) => {
+  const pos = await PurchaseOrder.find({ createdBy: req.user._id, status: { $in: SPENDABLE } })
     .select('vendor vendorId amount')
     .lean();
   const buckets = {};
