@@ -30,7 +30,7 @@ const TIERS = [
     seats: [
       { key: "manager", name: "Manager seat", monthly: 1499, annual: 1199, credits: "Unlimited invoices/mo" },
       { key: "approver", name: "Approver seat", monthly: 999, annual: 799, credits: "500 invoices/mo" },
-      { key: "collaborator", name: "Collaborator seat", monthly: 299, annual: 249, credits: "200 invoices/mo" },
+      { key: "collaborator", name: "Collaborator seat", monthly: 299, annual: 239, credits: "200 invoices/mo" },
     ],
     cta: "Select plan",
     ctaStyle: "primary",
@@ -47,8 +47,8 @@ const TIERS = [
     name: "Organization",
     popular: true,
     seats: [
-      { key: "manager", name: "Manager seat", monthly: 3999, annual: 3299, credits: "Unlimited invoices/mo" },
-      { key: "approver", name: "Approver seat", monthly: 1799, annual: 1499, credits: "1,000 invoices/mo" },
+      { key: "manager", name: "Manager seat", monthly: 3999, annual: 3199, credits: "Unlimited invoices/mo" },
+      { key: "approver", name: "Approver seat", monthly: 1799, annual: 1439, credits: "1,000 invoices/mo" },
       { key: "collaborator", name: "Collaborator seat", monthly: 499, annual: 399, credits: "500 invoices/mo" },
     ],
     cta: "Select plan",
