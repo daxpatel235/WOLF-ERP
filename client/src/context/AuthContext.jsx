@@ -3,7 +3,7 @@
 import { createContext, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api";
-import { saveSession, clearSession, getStoredUser } from "@/lib/utils";
+import { saveSession, clearSession, getStoredUser, setAuthCookie } from "@/lib/utils";
 import { TOKEN_KEY } from "@/lib/constants";
 
 export const AuthContext = createContext(null);
@@ -30,6 +30,15 @@ export function AuthProvider({ children }) {
       typeof window !== "undefined"
         ? localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY)
         : null;
+
+    // Backfill the middleware cookie for sessions created before it existed,
+    // so the edge redirect works without requiring a fresh login. Persistent
+    // if the token lives in localStorage ("remember me"), session-scoped if not.
+    if (stored && token) {
+      const remembered =
+        typeof window !== "undefined" && !!localStorage.getItem(TOKEN_KEY);
+      setAuthCookie(stored, remembered);
+    }
 
     if (!token) {
       setLoading(false);

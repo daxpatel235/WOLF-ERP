@@ -1,6 +1,26 @@
 // Misc client helpers: session storage + small utilities.
 
-import { TOKEN_KEY, USER_KEY } from "./constants";
+import { TOKEN_KEY, USER_KEY, ROLE_HOME } from "./constants";
+
+// Cookie read by middleware.js to redirect signed-in users away from public
+// pages (/, /login, /register) at the EDGE — before any HTML paints, so there's
+// no landing-page flash. It holds only the role's home path (no token/secrets).
+const HOME_COOKIE = "wolf_home";
+
+// Mirror the session into a cookie so the server/edge can see "is signed in"
+// (localStorage is invisible to middleware). Persistent when "remember me",
+// a session cookie otherwise — matching the storage choice below.
+export function setAuthCookie(user, remember = false) {
+  if (typeof window === "undefined") return;
+  const home = ROLE_HOME[user?.role] || "/dashboard";
+  const maxAge = remember ? `; max-age=${60 * 60 * 24 * 15}` : ""; // ~JWT lifetime
+  document.cookie = `${HOME_COOKIE}=${encodeURIComponent(home)}; path=/; samesite=lax${maxAge}`;
+}
+
+export function clearAuthCookie() {
+  if (typeof window === "undefined") return;
+  document.cookie = `${HOME_COOKIE}=; path=/; max-age=0; samesite=lax`;
+}
 
 // Persist the session. `remember` chooses localStorage (persistent) vs
 // sessionStorage (cleared when the tab closes).
@@ -13,6 +33,7 @@ export function saveSession(token, user, remember = false) {
   // Avoid a stale copy in the other store.
   other.removeItem(TOKEN_KEY);
   other.removeItem(USER_KEY);
+  setAuthCookie(user, remember);
 }
 
 export function clearSession() {
@@ -21,6 +42,7 @@ export function clearSession() {
     s.removeItem(TOKEN_KEY);
     s.removeItem(USER_KEY);
   });
+  clearAuthCookie();
 }
 
 export function getStoredUser() {
