@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -27,8 +27,15 @@ const ROLES = [
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register } = useAuth();
+  const { register, user, loading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+
+  // Already signed in? Don't show the signup form — send them to the app.
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(ROLE_HOME[user.role] || "/dashboard");
+    }
+  }, [authLoading, user, router]);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState("");
 

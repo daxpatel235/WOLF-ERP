@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
@@ -10,8 +10,16 @@ import DemoDisclaimer from "@/components/shared/DemoDisclaimer";
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+
+  // Already signed in (e.g. a "keep me signed in" session survived a browser
+  // restart)? Skip the form and go straight to the dashboard.
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(ROLE_HOME[user.role] || "/dashboard");
+    }
+  }, [authLoading, user, router]);
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState("");
 
