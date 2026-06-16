@@ -1,8 +1,20 @@
+const path = require('path');
+const fs = require('fs');
 const mongoose = require('mongoose');
 const env = require('./env');
 const logger = require('../utils/logger');
 
 mongoose.set('strictQuery', true);
+
+// On-disk location for the local fallback database (used only when no real
+// MONGO_URI is reachable). Keeping a fixed dbPath turns the dev fallback from a
+// throwaway in-memory store into a PERSISTENT one: data survives restarts.
+// Gitignored — never committed.
+const LOCAL_DB_PATH = path.join(__dirname, '..', '..', '.localdb');
+
+// Held so graceful shutdown can stop the embedded mongod cleanly (avoids an
+// unclean-shutdown lock on the persistent data directory).
+let memoryServer = null;
 
 // Connection options tuned for a free-tier Atlas cluster, which drops idle
 // connections aggressively. The goal is to FAIL FAST and recover, rather than
@@ -29,10 +41,12 @@ function attachConnectionListeners() {
   conn.on('error', (err) => logger.error(`MongoDB connection error: ${err.message}`));
 }
 
-// Last-resort fallback: spin up an in-memory MongoDB so the app still runs for
-// demos/dev when no real MongoDB is reachable. Only used outside production,
-// and only if `mongodb-memory-server` is installed. Data resets on restart.
-async function tryInMemory() {
+// Fallback database for local dev when no real MONGO_URI is reachable. Spins up
+// an embedded mongod (via mongodb-memory-server) pointed at a PERSISTENT on-disk
+// dbPath, so data survives restarts. Only used outside production and only if
+// the package is installed. Demo data is seeded ONLY when the store is empty, so
+// a restart never wipes what you've added.
+async function tryLocalDb() {
   if (env.isProd || process.env.USE_MEMORY_DB === 'false') return null;
 
   let MongoMemoryServer;
@@ -43,22 +57,42 @@ async function tryInMemory() {
   }
 
   try {
-    const mem = await MongoMemoryServer.create();
-    await mongoose.connect(mem.getUri('wolf_erp'));
-    logger.warn('Connected to an IN-MEMORY MongoDB (data resets when the server stops).');
-    logger.warn('Install/run a real MongoDB or set MONGO_URI for persistent storage.');
+    fs.mkdirSync(LOCAL_DB_PATH, { recursive: true });
+    memoryServer = await MongoMemoryServer.create({
+      instance: { dbPath: LOCAL_DB_PATH, storageEngine: 'wiredTiger' },
+    });
+    await mongoose.connect(memoryServer.getUri('wolf_erp'), CONNECT_OPTIONS);
+    logger.warn(`Using a PERSISTENT local database at ${LOCAL_DB_PATH} (data survives restarts).`);
+    logger.warn('Set MONGO_URI to a MongoDB Atlas string for cloud-hosted, production-grade storage.');
 
-    // Auto-seed so the in-memory database isn't empty.
+    // Seed demo data only on a fresh/empty store — never overwrite existing data.
     try {
-      const { seedDatabase } = require('../seed');
-      await seedDatabase();
+      const User = require('../models/User');
+      const existing = await User.estimatedDocumentCount();
+      if (existing === 0) {
+        const { seedDatabase } = require('../seed');
+        await seedDatabase();
+      } else {
+        logger.info(`Local database already has data (${existing} users) — skipping seed.`);
+      }
     } catch (e) {
-      logger.error(`Auto-seed of in-memory DB failed: ${e.message}`);
+      logger.error(`Auto-seed check failed: ${e.message}`);
     }
     return mongoose.connection;
   } catch (e) {
-    logger.error(`In-memory MongoDB failed to start: ${e.message}`);
+    logger.error(`Local fallback database failed to start: ${e.message}`);
     return null;
+  }
+}
+
+// Stop the embedded mongod cleanly (called from graceful shutdown). doCleanup
+// is false so the persistent data directory is kept intact for next boot.
+async function closeLocalDb() {
+  if (!memoryServer) return;
+  try {
+    await memoryServer.stop({ doCleanup: false });
+  } catch (e) {
+    logger.warn(`Error stopping local database: ${e.message}`);
   }
 }
 
@@ -72,16 +106,17 @@ const connectDB = async () => {
   } catch (error) {
     logger.warn(`Could not reach MongoDB at ${env.MONGO_URI} (${error.message}).`);
 
-    const fallback = await tryInMemory();
+    const fallback = await tryLocalDb();
     if (fallback) return fallback;
 
     logger.error(
       'No database available. Start a local MongoDB (mongod), set MONGO_URI in server/.env ' +
         'to a MongoDB Atlas string, or run `npm install mongodb-memory-server` for an automatic ' +
-        'in-memory database.'
+        'persistent local database.'
     );
     process.exit(1);
   }
 };
 
 module.exports = connectDB;
+module.exports.closeLocalDb = closeLocalDb;

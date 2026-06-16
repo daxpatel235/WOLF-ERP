@@ -25,6 +25,9 @@ dist/
 # ---- Server runtime artifacts ----
 server/uploads/*
 !server/uploads/.gitkeep
+# Persistent local fallback database (dev only — never commit data files)
+server/.localdb/
+**/.localdb/
 
 # ---- Logs ----
 *.log

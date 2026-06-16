@@ -35,6 +35,7 @@ async function start() {
     server.close(async () => {
       try {
         await mongoose.connection.close(false);
+        await connectDB.closeLocalDb(); // no-op unless the local fallback DB is in use
       } catch (e) {
         logger.error(`Error closing MongoDB: ${e.message}`);
       }
