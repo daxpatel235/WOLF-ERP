@@ -4,6 +4,31 @@ const logger = require('../utils/logger');
 
 mongoose.set('strictQuery', true);
 
+// Connection options tuned for a free-tier Atlas cluster, which drops idle
+// connections aggressively. The goal is to FAIL FAST and recover, rather than
+// let a request hang while mongoose silently buffers commands against a dead
+// socket (the classic "backend is stuck" symptom).
+const CONNECT_OPTIONS = {
+  serverSelectionTimeoutMS: 6000, // give up finding a server after 6s, don't hang
+  socketTimeoutMS: 45000, // kill a socket that's been silent for 45s
+  connectTimeoutMS: 10000, // cap the initial TCP/TLS handshake
+  maxPoolSize: 10, // plenty for this workload; avoids exhausting free-tier limits
+  bufferTimeoutMS: 8000, // queue a query for at most 8s while reconnecting, then error
+  heartbeatFrequencyMS: 10000, // notice a dead primary within ~10s
+};
+
+// Log connection lifecycle so a silent drop/reconnect is visible in the logs
+// instead of surfacing only as mysterious slow requests. Registered once.
+let listenersAttached = false;
+function attachConnectionListeners() {
+  if (listenersAttached) return;
+  listenersAttached = true;
+  const conn = mongoose.connection;
+  conn.on('disconnected', () => logger.warn('MongoDB disconnected — mongoose will retry automatically.'));
+  conn.on('reconnected', () => logger.info('MongoDB reconnected.'));
+  conn.on('error', (err) => logger.error(`MongoDB connection error: ${err.message}`));
+}
+
 // Last-resort fallback: spin up an in-memory MongoDB so the app still runs for
 // demos/dev when no real MongoDB is reachable. Only used outside production,
 // and only if `mongodb-memory-server` is installed. Data resets on restart.
@@ -39,8 +64,9 @@ async function tryInMemory() {
 
 // Connect to MongoDB. Prefer the configured MONGO_URI; fall back to in-memory.
 const connectDB = async () => {
+  attachConnectionListeners();
   try {
-    const conn = await mongoose.connect(env.MONGO_URI, { serverSelectionTimeoutMS: 6000 });
+    const conn = await mongoose.connect(env.MONGO_URI, CONNECT_OPTIONS);
     logger.info(`MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);
     return conn;
   } catch (error) {

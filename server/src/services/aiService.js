@@ -24,10 +24,15 @@ const model = enabled ? env.GEMINI_MODEL : null;
 
 let genai = null;
 
+// Per-request upstream timeout (ms). Without this the SDK can wait on a hung
+// connection indefinitely, and withRetry would multiply the hang. 25s per
+// attempt keeps each try bounded while still allowing for a slow free-tier model.
+const AI_HTTP_TIMEOUT_MS = parseInt(process.env.AI_HTTP_TIMEOUT_MS, 10) || 25000;
+
 if (enabled) {
   const { GoogleGenAI } = require('@google/genai');
-  genai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
-  logger.info(`AI enabled — provider: Gemini (${model})`);
+  genai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY, httpOptions: { timeout: AI_HTTP_TIMEOUT_MS } });
+  logger.info(`AI enabled — provider: Gemini (${model}), per-call timeout ${AI_HTTP_TIMEOUT_MS}ms`);
 } else {
   logger.warn('No AI key set (GEMINI_API_KEY) — AI features are disabled.');
 }
