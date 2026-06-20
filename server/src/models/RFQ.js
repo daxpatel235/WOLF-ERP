@@ -22,6 +22,10 @@ const rfqSchema = new mongoose.Schema(
   baseOptions()
 );
 
+// Dashboard/listing queries always scope by owner, often plus status. The
+// compound also serves owner-only lookups via its leading-field prefix.
+rfqSchema.index({ createdBy: 1, status: 1 });
+
 // `invited` mirrors the count of invited vendors for the list UI.
 rfqSchema.virtual('invited').get(function getInvited() {
   return (this.invitedVendors || []).length;

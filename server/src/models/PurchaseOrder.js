@@ -26,4 +26,7 @@ const purchaseOrderSchema = new mongoose.Schema(
   baseOptions()
 );
 
+// Dashboard spend rollups scope by owner and filter on status.
+purchaseOrderSchema.index({ createdBy: 1, status: 1 });
+
 module.exports = mongoose.model('PurchaseOrder', purchaseOrderSchema);

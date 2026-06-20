@@ -19,4 +19,8 @@ const vendorSchema = new mongoose.Schema(
   baseOptions()
 );
 
+// Dashboard/listing queries always scope by owner, often plus status. The
+// compound also serves owner-only lookups via its leading-field prefix.
+vendorSchema.index({ createdBy: 1, status: 1 });
+
 module.exports = mongoose.model('Vendor', vendorSchema);

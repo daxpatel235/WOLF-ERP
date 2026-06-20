@@ -24,6 +24,24 @@ async function start() {
   server.headersTimeout = 66000; // must exceed keepAliveTimeout
   server.requestTimeout = 120000;
 
+  // Self-ping to keep a free-tier host awake. Render spins the service down
+  // after ~15 min idle, so the first request afterwards cold-starts for tens of
+  // seconds. Hitting our own cheap liveness route every ~13 min prevents that.
+  // Only runs in production and only when a target URL is known (see env.js).
+  if (env.isProd && env.KEEPALIVE_URL) {
+    const pingUrl = `${env.KEEPALIVE_URL.replace(/\/$/, '')}/api/health`;
+    const KEEPALIVE_MS = 13 * 60 * 1000; // safely under the ~15 min idle window
+    const timer = setInterval(async () => {
+      try {
+        await fetch(pingUrl, { method: 'GET' });
+      } catch (e) {
+        logger.warn(`Keep-awake self-ping failed: ${e.message}`);
+      }
+    }, KEEPALIVE_MS);
+    timer.unref(); // never block shutdown just for the self-ping
+    logger.info(`Keep-awake self-ping enabled → ${pingUrl} every 13m.`);
+  }
+
   // Graceful shutdown: Render (and most hosts) send SIGTERM on every deploy and
   // idle spin-down. Drain in-flight requests and close the DB so the next boot
   // starts clean instead of fighting half-open connections.

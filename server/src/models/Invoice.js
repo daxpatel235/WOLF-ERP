@@ -23,4 +23,8 @@ const invoiceSchema = new mongoose.Schema(
   baseOptions()
 );
 
+// Dashboard outstanding/overdue rollups scope by owner and filter on status.
+// The compound also serves owner-only lookups via its leading-field prefix.
+invoiceSchema.index({ createdBy: 1, status: 1 });
+
 module.exports = mongoose.model('Invoice', invoiceSchema);

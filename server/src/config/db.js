@@ -41,6 +41,32 @@ function attachConnectionListeners() {
   conn.on('error', (err) => logger.error(`MongoDB connection error: ${err.message}`));
 }
 
+// Keep-warm heartbeat. Free-tier Atlas (and middleboxes) drop idle connections;
+// the next real query then pays a multi-second stall while mongoose BUFFERS the
+// command and re-establishes the socket (the "buffering too much" symptom). A
+// cheap periodic ping keeps a pooled socket alive so user requests never wait on
+// a reconnect. unref()'d so it never keeps the process alive on its own.
+const HEARTBEAT_MS = 4 * 60 * 1000; // under typical idle-drop windows
+let heartbeat = null;
+function startHeartbeat() {
+  if (heartbeat) return;
+  heartbeat = setInterval(async () => {
+    if (mongoose.connection.readyState !== 1) return; // not connected — nothing to keep warm
+    try {
+      await mongoose.connection.db.admin().command({ ping: 1 });
+    } catch (e) {
+      logger.warn(`DB keep-warm ping failed: ${e.message}`);
+    }
+  }, HEARTBEAT_MS);
+  heartbeat.unref();
+}
+function stopHeartbeat() {
+  if (heartbeat) {
+    clearInterval(heartbeat);
+    heartbeat = null;
+  }
+}
+
 // Fallback database for local dev when no real MONGO_URI is reachable. Spins up
 // an embedded mongod (via mongodb-memory-server) pointed at a PERSISTENT on-disk
 // dbPath, so data survives restarts. Only used outside production and only if
@@ -88,6 +114,7 @@ async function tryLocalDb() {
 // Stop the embedded mongod cleanly (called from graceful shutdown). doCleanup
 // is false so the persistent data directory is kept intact for next boot.
 async function closeLocalDb() {
+  stopHeartbeat();
   if (!memoryServer) return;
   try {
     await memoryServer.stop({ doCleanup: false });
@@ -102,6 +129,7 @@ const connectDB = async () => {
   try {
     const conn = await mongoose.connect(env.MONGO_URI, CONNECT_OPTIONS);
     logger.info(`MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);
+    startHeartbeat(); // keep the pool warm so queries never wait on a reconnect
     return conn;
   } catch (error) {
     logger.warn(`Could not reach MongoDB at ${env.MONGO_URI} (${error.message}).`);

@@ -8,33 +8,62 @@ const notify = require('../services/notificationService');
 
 const SPENDABLE = ['Approved', 'Sent', 'Received'];
 
+const NON_OUTSTANDING = ['Paid', 'Cancelled', 'Draft'];
+
 // GET /api/reports/summary  — headline numbers for the dashboard.
+// Every figure is computed in the database (counts + grouped sums) so the API
+// never streams whole collections into Node just to total them up. Combined
+// with the { createdBy, status } indexes, each branch is an index-backed scan.
 const summary = asyncHandler(async (req, res) => {
   const owner = req.user._id;
-  const [vendors, activeVendors, rfqs, openRfqs, pos, invoices, pendingApprovals] = await Promise.all([
+  const [vendors, activeVendors, rfqs, openRfqs, poAgg, invAgg, pendingApprovals] = await Promise.all([
     Vendor.countDocuments({ createdBy: owner }),
     Vendor.countDocuments({ createdBy: owner, status: 'Active' }),
     RFQ.countDocuments({ createdBy: owner }),
     RFQ.countDocuments({ createdBy: owner, status: 'Published' }),
-    PurchaseOrder.find({ createdBy: owner }).select('amount status').lean(),
-    Invoice.find({ createdBy: owner }).select('amount amountPaid status').lean(),
+    PurchaseOrder.aggregate([
+      { $match: { createdBy: owner } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          totalSpend: {
+            $sum: { $cond: [{ $in: ['$status', SPENDABLE] }, { $ifNull: ['$amount', 0] }, 0] },
+          },
+        },
+      },
+    ]),
+    Invoice.aggregate([
+      { $match: { createdBy: owner } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          outstanding: {
+            $sum: {
+              $cond: [
+                { $in: ['$status', NON_OUTSTANDING] },
+                0,
+                { $subtract: [{ $ifNull: ['$amount', 0] }, { $ifNull: ['$amountPaid', 0] }] },
+              ],
+            },
+          },
+          overdue: { $sum: { $cond: [{ $eq: ['$status', 'Overdue'] }, 1, 0] } },
+        },
+      },
+    ]),
     Approval.countDocuments({ createdBy: owner, status: 'Pending' }),
   ]);
 
-  const totalSpend = pos
-    .filter((p) => SPENDABLE.includes(p.status))
-    .reduce((t, p) => t + (p.amount || 0), 0);
-  const outstanding = invoices
-    .filter((i) => !['Paid', 'Cancelled', 'Draft'].includes(i.status))
-    .reduce((t, i) => t + ((i.amount || 0) - (i.amountPaid || 0)), 0);
-  const overdue = invoices.filter((i) => i.status === 'Overdue').length;
+  const po = poAgg[0] || { total: 0, totalSpend: 0 };
+  const inv = invAgg[0] || { total: 0, outstanding: 0, overdue: 0 };
 
   res.json({
     data: {
       vendors: { total: vendors, active: activeVendors },
       rfqs: { total: rfqs, open: openRfqs },
-      purchaseOrders: { total: pos.length, totalSpend },
-      invoices: { total: invoices.length, outstanding, overdue },
+      purchaseOrders: { total: po.total, totalSpend: po.totalSpend },
+      invoices: { total: inv.total, outstanding: inv.outstanding, overdue: inv.overdue },
       approvals: { pending: pendingApprovals },
     },
   });

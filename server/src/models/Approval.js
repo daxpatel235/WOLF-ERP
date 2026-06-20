@@ -27,9 +27,13 @@ const approvalSchema = new mongoose.Schema(
     decidedBy: { type: String, default: '' },
     decidedAt: { type: Date },
     comment: { type: String, default: '' },
-    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
   baseOptions()
 );
+
+// Dashboard counts pending approvals by owner; list views filter by status too.
+// The compound also serves owner-only lookups via its leading-field prefix.
+approvalSchema.index({ createdBy: 1, status: 1 });
 
 module.exports = mongoose.model('Approval', approvalSchema);

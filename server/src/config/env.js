@@ -22,6 +22,13 @@ const env = {
 
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:3000',
 
+  // Optional self-ping target to stop a free-tier host (e.g. Render) from
+  // spinning the service down after idle — the spin-down is what makes the
+  // first request after a quiet spell cold-start for tens of seconds. Render
+  // injects RENDER_EXTERNAL_URL automatically; set KEEPALIVE_URL to override or
+  // to enable it on another host. Leave unset to disable self-pinging.
+  KEEPALIVE_URL: process.env.KEEPALIVE_URL || process.env.RENDER_EXTERNAL_URL || '',
+
   // SMTP is optional — if unset, emails are logged to the console instead of sent.
   SMTP_HOST: process.env.SMTP_HOST || '',
   SMTP_PORT: parseInt(process.env.SMTP_PORT, 10) || 587,
