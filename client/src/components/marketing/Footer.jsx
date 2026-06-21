@@ -28,8 +28,8 @@ function destFor(label) {
     Reporting: "/#platform",
     Support: "mailto:support@wolferp.in",
     Contact: "mailto:hello@wolferp.in",
-    "API Reference": "https://github.com/daxpatel235/procurement-ERP",
-    Docs: "https://github.com/daxpatel235/procurement-ERP",
+    "API Reference": "https://github.com/daxpatel235/WOLF-ERP",
+    Docs: "https://github.com/daxpatel235/WOLF-ERP",
   };
   return map[label] || "/register";
 }
