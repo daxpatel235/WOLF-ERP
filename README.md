@@ -70,9 +70,9 @@ All AI runs through `POST /api/ai/*` and degrades gracefully (the app works full
 
 **Frontend** — Next.js 15.5 (App Router), React 18, Tailwind CSS 3.4, Lucide icons, jsPDF + html2canvas for client-side PDFs. Deployed on **Vercel**.
 
-**Backend** — Node.js + Express 4, MongoDB via Mongoose 8, JWT + bcryptjs, Nodemailer (SMTP), Puppeteer for server-side PDFs, and `@google/genai` (Gemini 2.5 Flash + `gemini-embedding-001`, 768-dim). Deployed on **Render**.
+**Backend** — Node.js + Express 4, MongoDB via Mongoose 8, JWT + bcryptjs, Nodemailer (SMTP), and `@google/genai` (Gemini 2.5 Flash + `gemini-embedding-001`, 768-dim). Deployed on **Render**.
 
-**Database** — **MongoDB Atlas** (with Atlas Vector Search powering RAG). A local in-memory MongoDB fallback means the app runs with zero setup in development.
+**Database** — **MongoDB Atlas** (with Atlas Vector Search powering RAG). A persistent local MongoDB fallback (embedded mongod on disk, so data survives restarts) means the app runs with zero setup in development.
 
 ---
 
@@ -111,7 +111,7 @@ WOLF-ERP/
 
 ### Prerequisites
 - Node.js 18+ and npm
-- MongoDB is **optional** — the backend falls back to an in-memory database and auto-seeds demo data.
+- MongoDB is **optional** — the backend falls back to a persistent local database (data survives restarts) and auto-seeds demo data on first boot.
 
 ### 1. Clone
 ```bash
