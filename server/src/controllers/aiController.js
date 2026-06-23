@@ -23,6 +23,10 @@ const { createRateLimiter } = require('../utils/rateLimiter');
 // Per-user cap on chat messages to bound AI spend (see env.RAG_RATE_*).
 const chatLimiter = createRateLimiter({ max: env.RAG_RATE_MAX, windowMs: env.RAG_RATE_WINDOW_MS });
 
+// Per-user cap on document scans. Scanning runs on the Pro model (low free-tier
+// req/min), so we keep each user under it: default 2 uploads per minute.
+const scanLimiter = createRateLimiter({ max: env.SCAN_RATE_MAX, windowMs: env.SCAN_RATE_WINDOW_MS });
+
 // Mirrors the category options in the "Create RFQ" form so the AI's choice
 // always maps onto a real dropdown value.
 const RFQ_CATEGORIES = ['Office Furniture', 'Electronics', 'Raw Materials', 'IT Services', 'Travel', 'Medical'];
@@ -167,8 +171,17 @@ const extractDocument = asyncHandler(async (req, res) => {
     return res.status(422).json({ message: 'Paste the document text or attach an image to extract.' });
   }
 
+  // Cost/quota control: cap scans per user per window (Pro model has a low free-tier rate).
+  const gate = scanLimiter(String(req.user._id));
+  if (!gate.ok) {
+    return res.status(429).json({
+      message: `Too many document scans. Please wait ${Math.ceil(gate.retryMs / 1000)}s and try again.`,
+    });
+  }
+
   const data = await ai.generateJSON({
     images: image ? [image] : [],
+    model: env.GEMINI_SCAN_MODEL, // stronger Pro model for max extraction accuracy
     maxTokens: 4096,
     system:
       `You are a data-entry assistant for a procurement team. Extract the ${kind} details from the supplied ` +

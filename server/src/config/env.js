@@ -41,6 +41,19 @@ const env = {
   // rest of the app keeps working unchanged.
   GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
   GEMINI_MODEL: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+  // Model used for document scanning (image → structured data). Defaults to Flash
+  // because gemini-2.5-pro is NOT on the free tier (verified: free-tier quota = 0;
+  // it needs a billing-enabled project). If you enable billing, set this to
+  // gemini-2.5-pro for higher extraction accuracy — the code already supports it.
+  GEMINI_SCAN_MODEL: process.env.GEMINI_SCAN_MODEL || 'gemini-2.5-flash',
+
+  // Optional Groq provider for the RAG chat answer ONLY. Groq's free tier serves
+  // large open models (e.g. Llama 3.3 70B) far bigger than Gemini Flash, with
+  // generous limits for low-volume use. When GROQ_API_KEY is set, the chat box
+  // answers with Groq; document scanning, drafts and embeddings stay on Gemini.
+  // If unset, chat falls back to the Gemini text model — nothing else changes.
+  GROQ_API_KEY: process.env.GROQ_API_KEY || '',
+  GROQ_MODEL: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
 
   // Embeddings power Level 3 (RAG chat). gemini-embedding-001 is free and
   // supports Matryoshka output sizes — we request 768-dim vectors. EMBED_DIM
@@ -67,6 +80,11 @@ const env = {
   RAG_RATE_MAX: parseInt(process.env.RAG_RATE_MAX, 10) || 30,
   RAG_RATE_WINDOW_MS: parseInt(process.env.RAG_RATE_WINDOW_MS, 10) || 5 * 60 * 1000,
 
+  // Per-user document-scan cap. Scanning hits the Pro model (5 req/min free-tier
+  // ceiling), so we cap each user well under that: 2 uploads per minute.
+  SCAN_RATE_MAX: parseInt(process.env.SCAN_RATE_MAX, 10) || 2,
+  SCAN_RATE_WINDOW_MS: parseInt(process.env.SCAN_RATE_WINDOW_MS, 10) || 60 * 1000,
+
   // --- Dormancy cleanup (free-tier storage guard) ---
   // A weekly external cron hits POST /api/admin/cleanup with this shared secret
   // in the x-cleanup-token header. If unset, the endpoint is disabled (503) so
@@ -80,6 +98,9 @@ env.isProd = env.NODE_ENV === 'production';
 env.emailEnabled = Boolean(env.SMTP_HOST && env.SMTP_USER);
 env.aiProvider = env.GEMINI_API_KEY ? 'gemini' : null;
 env.aiEnabled = Boolean(env.aiProvider);
+// Which provider answers the RAG chat box. Groq when its key is set, else the
+// Gemini text model. (Vision/JSON document scanning is always Gemini.)
+env.chatProvider = env.GROQ_API_KEY ? 'groq' : env.aiProvider;
 // RAG chat (Level 3) needs an embeddings provider. Only Gemini ships free
 // embeddings here, so retrieval is enabled only when the Gemini key is set.
 env.ragEnabled = Boolean(env.GEMINI_API_KEY);

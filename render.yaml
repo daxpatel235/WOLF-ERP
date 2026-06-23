@@ -31,9 +31,13 @@ services:
       #   MONGO_URI    → your Atlas connection string
       #   CLIENT_URL   → your Vercel URL (for CORS), set after the frontend deploys
       #   GEMINI_API_KEY → from aistudio.google.com (optional; AI features off if blank)
+      #   GROQ_API_KEY   → from console.groq.com/keys (optional; chat answers use
+      #                    Groq/Llama 3.3 70B when set, else fall back to Gemini)
       - key: MONGO_URI
         sync: false
       - key: CLIENT_URL
         sync: false
       - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
         sync: false

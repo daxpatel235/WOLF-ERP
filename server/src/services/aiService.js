@@ -37,6 +37,14 @@ if (enabled) {
   logger.warn('No AI key set (GEMINI_API_KEY) — AI features are disabled.');
 }
 
+// Optional: route the RAG chat answer to Groq's free, larger models. Everything
+// else (document scanning, drafts, embeddings) stays on Gemini.
+const groqEnabled = Boolean(env.GROQ_API_KEY);
+const groqModel = env.GROQ_MODEL;
+if (groqEnabled) {
+  logger.info(`Chat answers — provider: Groq (${groqModel}); Gemini still handles scanning & embeddings.`);
+}
+
 function ensureReady() {
   if (!enabled) throw new AiDisabledError();
 }
@@ -104,9 +112,9 @@ async function geminiText({ system, prompt, images, maxTokens }) {
   return (resp.text || '').trim();
 }
 
-async function geminiJSON({ system, prompt, images, schema, maxTokens }) {
+async function geminiJSON({ system, prompt, images, schema, maxTokens, model: modelOverride }) {
   const resp = await genai.models.generateContent({
-    model,
+    model: modelOverride || model,
     contents: geminiParts(prompt, images),
     config: {
       systemInstruction: system,
@@ -117,6 +125,41 @@ async function geminiJSON({ system, prompt, images, schema, maxTokens }) {
     },
   });
   return (resp.text || '').trim();
+}
+
+// ---------------------------------------------------------------------------
+// Groq helper (OpenAI-compatible REST — no SDK dependency)
+// ---------------------------------------------------------------------------
+
+// Text-only chat completion via Groq. Used for the RAG answer; images/JSON
+// schema are intentionally not supported here (those stay on Gemini).
+async function groqText({ system, prompt, maxTokens }) {
+  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${env.GROQ_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: groqModel,
+      messages: [
+        ...(system ? [{ role: 'system', content: system }] : []),
+        { role: 'user', content: prompt },
+      ],
+      max_tokens: maxTokens,
+      temperature: 0.3,
+    }),
+    // Bound each attempt the same way the Gemini SDK is bounded above.
+    signal: AbortSignal.timeout(AI_HTTP_TIMEOUT_MS),
+  });
+  if (!resp.ok) {
+    // Keep the status in the message so withRetry/wrapError can classify it
+    // (e.g. 503 → retry, 429 → "rate limit reached").
+    const body = await resp.text().catch(() => '');
+    throw new Error(`Groq ${resp.status}: ${body.slice(0, 200)}`);
+  }
+  const data = await resp.json();
+  return (data.choices?.[0]?.message?.content || '').trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -137,15 +180,33 @@ async function generateText({ system, prompt, images, maxTokens = 1500 }) {
 }
 
 /**
+ * Free-text generation for the RAG chat answer. Uses Groq when GROQ_API_KEY is
+ * set (free, larger models), otherwise falls back to the Gemini text path. This
+ * is the ONLY place Groq is used — scanning, drafts and embeddings stay Gemini.
+ * @returns {Promise<string>}
+ */
+async function generateChat({ system, prompt, maxTokens = 1200 }) {
+  if (!groqEnabled) {
+    // No Groq configured — behave exactly like before (Gemini text).
+    return generateText({ system, prompt, maxTokens });
+  }
+  try {
+    return await withRetry(() => groqText({ system, prompt, maxTokens }));
+  } catch (err) {
+    throw wrapError(err);
+  }
+}
+
+/**
  * Structured generation — constrains output to a JSON Schema and returns the
  * parsed object.
  * @returns {Promise<object>}
  */
-async function generateJSON({ system, prompt, images, schema, maxTokens = 4096 }) {
+async function generateJSON({ system, prompt, images, schema, maxTokens = 4096, model: modelOverride }) {
   ensureReady();
   let raw;
   try {
-    raw = await withRetry(() => geminiJSON({ system, prompt, images, schema, maxTokens }));
+    raw = await withRetry(() => geminiJSON({ system, prompt, images, schema, maxTokens, model: modelOverride }));
   } catch (err) {
     throw wrapError(err);
   }
@@ -168,6 +229,7 @@ module.exports = {
   model,
   AiDisabledError,
   generateText,
+  generateChat,
   generateJSON,
   withRetry, // shared transient-error retry, reused by embeddingService
 };

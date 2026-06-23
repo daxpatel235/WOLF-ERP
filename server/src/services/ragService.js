@@ -167,6 +167,89 @@ async function buildDocuments(owner) {
 const hash = (s) => crypto.createHash('sha1').update(s).digest('hex');
 
 // ---------------------------------------------------------------------------
+// Account snapshot — whole-account aggregates the LLM needs for analytical
+// questions ("total spend?", "how many overdue invoices?", "top vendors?").
+// Vector retrieval only returns the few nearest records, which can't answer
+// count/sum/ranking questions — so we compute these directly and always include
+// them in the prompt alongside the retrieved detail.
+// ---------------------------------------------------------------------------
+
+const PO_SPENDABLE = ['Approved', 'Sent', 'Received'];
+const INV_OPEN = (i) => !['Paid', 'Cancelled', 'Draft'].includes(i.status);
+
+const countBy = (rows, key) => {
+  const out = {};
+  for (const r of rows) out[r[key] || '—'] = (out[r[key] || '—'] || 0) + 1;
+  return Object.entries(out)
+    .sort((a, b) => b[1] - a[1])
+    .map(([k, n]) => `${n} ${k}`)
+    .join(', ');
+};
+
+async function buildSnapshot(owner) {
+  const [vendors, rfqs, quotes, pos, invoices] = await Promise.all([
+    Vendor.find({ createdBy: owner }).select('name code category status rating').lean(),
+    RFQ.find({ createdBy: owner }).select('code status').lean(),
+    Quotation.find({ createdBy: owner }).select('code status amount').lean(),
+    PurchaseOrder.find({ createdBy: owner }).select('code vendor amount status').lean(),
+    Invoice.find({ createdBy: owner }).select('code vendor amount amountPaid status due').lean(),
+  ]);
+
+  if (!vendors.length && !rfqs.length && !quotes.length && !pos.length && !invoices.length) {
+    return 'ACCOUNT SNAPSHOT: this account has no procurement records yet.';
+  }
+
+  // Spend + top vendors from spendable purchase orders.
+  const spendByVendor = {};
+  let totalSpend = 0;
+  for (const p of pos) {
+    if (PO_SPENDABLE.includes(p.status)) {
+      spendByVendor[p.vendor] = (spendByVendor[p.vendor] || 0) + (p.amount || 0);
+      totalSpend += p.amount || 0;
+    }
+  }
+  const topVendors = Object.entries(spendByVendor)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([v, a]) => `${v} ${inr(a)}`);
+
+  // Invoice money.
+  let billed = 0;
+  let paid = 0;
+  let outstanding = 0;
+  for (const i of invoices) {
+    billed += i.amount || 0;
+    paid += i.amountPaid || 0;
+    if (INV_OPEN(i)) outstanding += (i.amount || 0) - (i.amountPaid || 0);
+  }
+  const overdue = invoices.filter((i) => i.status === 'Overdue');
+
+  const activeVendors = vendors.filter((v) => v.status === 'Active').length;
+
+  const lines = [
+    'ACCOUNT SNAPSHOT (live, whole account — use for totals, counts, rankings):',
+    `• Vendors: ${vendors.length} total (${activeVendors} active). By category: ${countBy(vendors, 'category') || '—'}.`,
+    topVendors.length ? `• Top vendors by spend: ${topVendors.join('; ')}.` : '• No spend recorded yet.',
+    `• RFQs: ${rfqs.length} total${rfqs.length ? ` (${countBy(rfqs, 'status')})` : ''}.`,
+    `• Quotations: ${quotes.length} total${quotes.length ? ` (${countBy(quotes, 'status')})` : ''}.`,
+    `• Purchase Orders: ${pos.length} total, total spend ${inr(totalSpend)}${pos.length ? ` (${countBy(pos, 'status')})` : ''}.`,
+    `• Invoices: ${invoices.length} total. Billed ${inr(billed)}, paid ${inr(paid)}, outstanding ${inr(outstanding)}.`,
+  ];
+  if (overdue.length) {
+    const overdueTotal = overdue.reduce((t, i) => t + ((i.amount || 0) - (i.amountPaid || 0)), 0);
+    lines.push(
+      `• Overdue invoices (${overdue.length}, total ${inr(overdueTotal)}): ` +
+        overdue
+          .slice(0, 15)
+          .map((i) => `${i.code} ${i.vendor} ${inr((i.amount || 0) - (i.amountPaid || 0))} (due ${day(i.due)})`)
+          .join('; ') +
+        '.'
+    );
+  }
+  return lines.join('\n');
+}
+
+// ---------------------------------------------------------------------------
 // 2. Indexing
 // ---------------------------------------------------------------------------
 
@@ -358,19 +441,30 @@ async function retrieve(query, owner, k = 6) {
 // ---------------------------------------------------------------------------
 
 const SYSTEM = [
-  'You are Wolf, the AI assistant inside the Wolf ERP procurement system.',
-  'Your ONLY job is to answer questions about this organisation\'s procurement data:',
-  'vendors, RFQs, quotations, purchase orders and invoices.',
-  'Answer the user using ONLY the CONTEXT provided — it is retrieved live from those records.',
+  'You are Wolf, a sharp and helpful AI procurement analyst inside the Wolf ERP system.',
+  'You answer questions about this organisation\'s own procurement data: vendors, RFQs,',
+  'quotations, purchase orders and invoices. You are given two information sources:',
+  '  1) ACCOUNT SNAPSHOT — live whole-account aggregates (totals, counts, status breakdowns,',
+  '     top vendors by spend, outstanding/overdue amounts). Use this for any "how many",',
+  '     "total", "how much", "list", "top/highest/lowest", "overall" or summary question.',
+  '  2) CONTEXT — the specific records most relevant to the question, retrieved live. Use this',
+  '     for details about particular vendors, RFQs, quotes, POs or invoices.',
+  'Together these cover the account; answer confidently from them.',
   'Rules:',
-  '• Stay strictly on-topic. If the question is not about this procurement data (e.g. weather,',
-  '  general knowledge, coding, maths, opinions, chit-chat), DO NOT answer it. Reply only:',
-  '  "I can only help with questions about your procurement data — vendors, RFQs, quotations,',
-  '  purchase orders and invoices." Never use outside knowledge.',
-  '• If the question is on-topic but the context lacks the answer, say so plainly and suggest',
-  '  what to look at — never invent vendors, amounts, codes or dates.',
+  '• Stay on-topic: only procurement data. If the question is unrelated (weather, general',
+  '  knowledge, coding, opinions, chit-chat), DO NOT answer. Reply only: "I can only help with',
+  '  questions about your procurement data — vendors, RFQs, quotations, purchase orders and',
+  '  invoices." Never use outside knowledge.',
+  '• Prefer the SNAPSHOT for figures it already provides (totals, counts, rankings) — they are',
+  '  computed over the whole account and are authoritative. Do not recompute them from CONTEXT,',
+  '  which holds only a sample of records.',
+  '• When you must add numbers yourself, do the arithmetic carefully and give only the final',
+  '  figure cleanly — never show scratch calculations or corrections in your reply.',
+  '• If a specific detail genuinely is not in either source, say so plainly and suggest where to',
+  '  look — never invent vendors, amounts, codes or dates.',
   '• Amounts are Indian Rupees (₹). Be specific with numbers, codes (e.g. V-1003, INV-2025-088) and dates.',
-  '• Be concise and direct: short paragraphs or tight bullet lists. No markdown headers.',
+  '• Be a good assistant: direct and concise, but complete. Use tight bullet lists or short',
+  '  paragraphs for multi-item answers. No markdown headers.',
   '• When you cite a record, mention its code so the user can find it.',
 ].join('\n');
 
@@ -450,11 +544,13 @@ async function answer({ message, history = [], owner }) {
 
   // Layer 2 — scope gate: embed the question ONCE (cheap), then judge scope from
   // three independent signals. If none fire, refuse here and SKIP the expensive
-  // generation call entirely.
+  // generation call entirely. We also build the account snapshot in parallel so
+  // analytical questions (totals/counts/rankings) can be answered accurately.
   const queryVector = await embeddings.embedOne(message, 'RETRIEVAL_QUERY');
-  const [chunks, capScore] = await Promise.all([
-    retrieveByVector(queryVector, owner, 6),
+  const [chunks, capScore, snapshot] = await Promise.all([
+    retrieveByVector(queryVector, owner, 10),
     capabilityScore(queryVector),
+    buildSnapshot(owner),
   ]);
   const dataScore = chunks[0]?.score ?? 0;
   const hasErpHint = ERP_HINT_RE.test(message);
@@ -474,11 +570,14 @@ async function answer({ message, history = [], owner }) {
   }
 
   // Layer 3 — grounded generation (the system prompt is a final backstop).
+  // The snapshot gives whole-account figures; the context gives specific records.
   const context = buildContext(chunks);
-  const text = await ai.generateText({
+  const text = await ai.generateChat({
     system: SYSTEM,
-    maxTokens: 1200,
-    prompt: `CONTEXT:\n${context}${buildHistory(history)}\n\nUser question: ${message}\n\nAnswer:`,
+    maxTokens: 1500,
+    prompt:
+      `${snapshot}\n\nCONTEXT (specific records):\n${context}` +
+      `${buildHistory(history)}\n\nUser question: ${message}\n\nAnswer:`,
   });
 
   // De-duplicate sources for citation chips in the UI.

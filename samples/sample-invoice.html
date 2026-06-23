@@ -1,0 +1,169 @@
+<!doctype html>
+<!--
+  Sample document for testing Wolf ERP's AI document scanning (/api/ai/extract).
+  How to use:
+    • IMAGE test (Gemini 2.5 Pro vision): open this file in a browser, then either
+      screenshot it or use the browser's Print → "Save as PDF"/screenshot, and
+      upload that image in the "Scan document" UI.
+    • TEXT test: just select-all + copy the invoice text and paste it in.
+  Expected extraction: vendor, documentNumber INV-2025-0457, amount 276592,
+  taxAmount 42192, 3 line items, and the notes line.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tax Invoice — Sharma Office Solutions Pvt Ltd</title>
+    <style>
+      :root { --ink: #1a1a1a; --muted: #666; --line: #d8d8d8; --accent: #1f3a5f; }
+      * { box-sizing: border-box; }
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        color: var(--ink);
+        margin: 0;
+        padding: 32px;
+        background: #f3f4f6;
+      }
+      .invoice {
+        max-width: 800px;
+        margin: 0 auto;
+        background: #fff;
+        padding: 40px 44px;
+        border: 1px solid var(--line);
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+      }
+      .top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        border-bottom: 3px solid var(--accent);
+        padding-bottom: 18px;
+        margin-bottom: 22px;
+      }
+      .brand h1 { margin: 0; font-size: 22px; color: var(--accent); }
+      .brand p { margin: 2px 0; font-size: 12.5px; color: var(--muted); }
+      .doc-title { text-align: right; }
+      .doc-title h2 { margin: 0; font-size: 26px; letter-spacing: 2px; color: var(--accent); }
+      .doc-title p { margin: 3px 0; font-size: 13px; }
+      .parties { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+      .parties .box { width: 48%; }
+      .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 4px; }
+      .parties .name { font-weight: 600; font-size: 14px; }
+      .parties p { margin: 2px 0; font-size: 13px; color: #333; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 13px; }
+      thead th {
+        background: var(--accent);
+        color: #fff;
+        text-align: left;
+        padding: 9px 10px;
+        font-weight: 600;
+      }
+      thead th.num, tbody td.num { text-align: right; }
+      tbody td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
+      tbody tr:nth-child(even) { background: #fafafa; }
+      .totals { width: 300px; margin-left: auto; font-size: 13.5px; }
+      .totals .row { display: flex; justify-content: space-between; padding: 6px 0; }
+      .totals .grand {
+        border-top: 2px solid var(--accent);
+        margin-top: 6px;
+        padding-top: 10px;
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--accent);
+      }
+      .notes { margin-top: 26px; font-size: 12.5px; color: #333; border-top: 1px dashed var(--line); padding-top: 14px; }
+      .notes .label { margin-bottom: 6px; }
+      .foot { margin-top: 28px; text-align: center; font-size: 11.5px; color: var(--muted); }
+    </style>
+  </head>
+  <body>
+    <div class="invoice">
+      <div class="top">
+        <div class="brand">
+          <h1>Sharma Office Solutions Pvt Ltd</h1>
+          <p>14, MG Road Industrial Estate, Pune, Maharashtra 411001</p>
+          <p>GSTIN: 27ABCDS1234F1Z5 &nbsp;|&nbsp; PAN: ABCDS1234F</p>
+          <p>accounts@sharmaoffice.in &nbsp;|&nbsp; +91 98220 11234</p>
+        </div>
+        <div class="doc-title">
+          <h2>TAX INVOICE</h2>
+          <p><strong>Invoice No:</strong> INV-2025-0457</p>
+          <p><strong>Date:</strong> 12 Jun 2025</p>
+          <p><strong>Due Date:</strong> 12 Jul 2025</p>
+          <p><strong>PO Ref:</strong> PO-2025-0188</p>
+        </div>
+      </div>
+
+      <div class="parties">
+        <div class="box">
+          <div class="label">Billed To</div>
+          <div class="name">Wolf Manufacturing Pvt Ltd</div>
+          <p>Plot 9, Hinjewadi Phase 2, Pune, Maharashtra 411057</p>
+          <p>GSTIN: 27WOLFM5678G1Z2</p>
+        </div>
+        <div class="box">
+          <div class="label">Payment Terms</div>
+          <p>Net 30 days from invoice date</p>
+          <p>Bank: HDFC Bank, Pune — A/C 50200012345678</p>
+          <p>IFSC: HDFC0000123</p>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Description</th>
+            <th class="num">Qty</th>
+            <th>Unit</th>
+            <th class="num">Unit Price (₹)</th>
+            <th class="num">Amount (₹)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Ergonomic Office Chair (mesh back, adjustable arms)</td>
+            <td class="num">10</td>
+            <td>pcs</td>
+            <td class="num">8,500.00</td>
+            <td class="num">85,000.00</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Height-Adjustable Standing Desk (1.4m, electric)</td>
+            <td class="num">5</td>
+            <td>pcs</td>
+            <td class="num">14,200.00</td>
+            <td class="num">71,000.00</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>LED Monitor 24" Full HD (IPS, HDMI)</td>
+            <td class="num">8</td>
+            <td>pcs</td>
+            <td class="num">9,800.00</td>
+            <td class="num">78,400.00</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="totals">
+        <div class="row"><span>Subtotal</span><span>₹ 2,34,400.00</span></div>
+        <div class="row"><span>CGST @ 9%</span><span>₹ 21,096.00</span></div>
+        <div class="row"><span>SGST @ 9%</span><span>₹ 21,096.00</span></div>
+        <div class="row grand"><span>Grand Total</span><span>₹ 2,76,592.00</span></div>
+      </div>
+
+      <div class="notes">
+        <div class="label">Notes</div>
+        Goods once sold will not be taken back. Warranty: 1 year on chairs and desks,
+        3 years on monitors. Delivery within 7 working days of payment confirmation.
+      </div>
+
+      <div class="foot">
+        This is a computer-generated invoice and does not require a signature. &nbsp;|&nbsp;
+        Sample document for Wolf ERP AI testing only.
+      </div>
+    </div>
+  </body>
+</html>
