@@ -26,7 +26,12 @@ function qs(params) {
   return "?" + new URLSearchParams(entries).toString();
 }
 
-async function request(path, { method = "GET", body, headers = {}, auth = true } = {}) {
+// Client-side backstop, just above the server's 30s timeout. Aborting a hung
+// request lets the UI surface a clear "waking up" message instead of an endless
+// spinner when the host is cold-starting.
+const REQUEST_TIMEOUT_MS = 35000;
+
+async function request(path, { method = "GET", body, headers = {}, auth = true, _retried = false } = {}) {
   const opts = { method, headers: { ...headers } };
 
   if (body !== undefined) {
@@ -38,14 +43,29 @@ async function request(path, { method = "GET", body, headers = {}, auth = true }
     if (token) opts.headers["Authorization"] = `Bearer ${token}`;
   }
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  opts.signal = controller.signal;
+
   let res;
   try {
     res = await fetch(`${API_URL}${path}`, opts);
-  } catch {
+  } catch (err) {
+    // The first request after the host cold-starts (e.g. Render free tier spins
+    // down when idle) often fails or aborts, then succeeds moments later. Retry
+    // GETs once — they're idempotent, so this is always safe. Mutations are not
+    // retried, so a POST can never run twice.
+    if (method === "GET" && !_retried) {
+      return request(path, { method, body, headers, auth, _retried: true });
+    }
     throw new ApiError(
-      `Cannot reach the server. Is the backend running at ${API_URL}?`,
+      err?.name === "AbortError"
+        ? "The server is taking too long to respond — it may be waking up. Please try again."
+        : `Cannot reach the server. Is the backend running at ${API_URL}?`,
       0
     );
+  } finally {
+    clearTimeout(timer);
   }
 
   // Parse body (may be empty).
@@ -57,6 +77,11 @@ async function request(path, { method = "GET", body, headers = {}, auth = true }
     } catch {
       data = { message: text };
     }
+  }
+
+  // A 503 from the server's own timeout backstop on a cold start → retry GETs once.
+  if (res.status === 503 && method === "GET" && !_retried) {
+    return request(path, { method, body, headers, auth, _retried: true });
   }
 
   if (!res.ok) {
@@ -161,6 +186,7 @@ export const aiApi = {
   invoiceAudit: (id) => request(`/ai/invoices/${id}/audit`),
   // Level 3 — conversational / RAG
   chat: (message, history) => request("/ai/chat", { method: "POST", body: { message, history } }),
+  act: (action) => request("/ai/chat/act", { method: "POST", body: { action } }),
   reindex: (force = false) => request("/ai/chat/reindex", { method: "POST", body: { force } }),
 };
 

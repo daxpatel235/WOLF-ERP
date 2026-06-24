@@ -77,11 +77,15 @@ invoices, approvals, reports, and activity are all scoped to the signed-in user.
 All AI runs through `POST /api/ai/*` and degrades gracefully — the app works fully
 even with no API keys configured.
 
-- **Wolf AI Chat (RAG)** — a floating assistant that answers questions grounded in
-  *your own* data. Gemini embeddings + vector search retrieve the most relevant
-  records, a **live account snapshot** supplies whole-account totals/counts/rankings,
-  and **Groq's Llama 3.3 70B** writes the answer. Strictly scope-guarded to
-  procurement topics, with per-user rate limiting and source citations.
+- **Wolf AI Chat (Agentic RAG)** — a floating assistant that answers questions
+  grounded in *your own* data **and takes actions on your behalf**. Gemini
+  embeddings + vector search retrieve the most relevant records, a **live account
+  snapshot** supplies whole-account totals/counts/rankings, and **Groq's Llama 3.3
+  70B** (with tool calling) writes the answer or proposes an action. Just say
+  *"Create an RFQ for 10 office chairs"* or *"Add a vendor: Acme Corp, Electronics,
+  Mumbai"* — the assistant prepares it and **you confirm before anything is saved**.
+  Strictly scope-guarded to procurement topics, with per-user rate limiting and
+  source citations.
 - **Document Scanning** — upload a vendor invoice or quotation image and **Gemini
   2.5 Flash** extracts the vendor, document number, totals, GST, and line items into
   a reviewable form. Rate-limited per user.
@@ -271,7 +275,8 @@ REST API grouped by module (full reference in [docs/API.md](docs/API.md)):
   - `GET /api/ai/reports/summary` — executive summary
   - `GET /api/ai/vendors/:id/risk` — vendor risk score
   - `GET /api/ai/invoices/:id/audit` — invoice 3-way-match audit
-  - `POST /api/ai/chat` — RAG chat; `POST /api/ai/chat/reindex` — rebuild the knowledge base
+  - `POST /api/ai/chat` — agentic RAG chat; `POST /api/ai/chat/act` — run a confirmed
+    action (create RFQ / add vendor); `POST /api/ai/chat/reindex` — rebuild the knowledge base
 - **Admin** — `POST /api/admin/cleanup` (token-protected dormancy reset)
 
 ---

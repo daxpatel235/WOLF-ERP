@@ -75,6 +75,8 @@ export default function NewRfqPage() {
     setSaving(true);
     setError("");
     try {
+      // Create + publish in a single request — the server publishes and emails
+      // the invited vendors in the background, so there's no second round-trip.
       const res = await rfqsApi.create({
         title: details.title,
         category: details.category,
@@ -82,9 +84,8 @@ export default function NewRfqPage() {
         items: items.map((it) => ({ name: it.name, qty: Number(it.qty), unit: it.unit })),
         invitedVendors: selected,
         notes,
+        publish: true,
       });
-      // Publish so invited vendors are notified.
-      await rfqsApi.publish(res.data.id);
       router.push(`/rfqs/${res.data.id}`);
     } catch (e) {
       setError(e.message || "Could not create the RFQ.");

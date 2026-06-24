@@ -94,31 +94,34 @@ const award = asyncHandler(async (req, res) => {
   quotation.status = 'Awarded';
   await quotation.save();
 
-  // Mark sibling quotations on the same RFQ as rejected, and the RFQ as Awarded.
-  await Quotation.updateMany(
-    { rfqId: quotation.rfqId, _id: { $ne: quotation._id }, status: { $ne: 'Awarded' }, createdBy: req.user._id },
-    { status: 'Rejected' }
-  );
-  if (quotation.rfqId) {
-    await RFQ.findOneAndUpdate({ code: quotation.rfqId, createdBy: req.user._id }, { status: 'Awarded' });
-  }
-
-  // Create a draft PO from the winning quotation.
+  // The next three writes are independent of each other, so run them together:
+  //   1. reject sibling quotes on the same RFQ
+  //   2. mark the RFQ Awarded
+  //   3. draft a PO from the winning quote
   const poCode = await generateCode(PurchaseOrder, { prefix: 'PO', year: true, pad: 3 });
-  const po = await PurchaseOrder.create({
-    code: poCode,
-    vendor: quotation.vendor,
-    vendorId: quotation.vendorId,
-    rfqId: quotation.rfqId,
-    quotationId: quotation.code,
-    amount: quotation.amount,
-    status: 'Draft',
-    priority: req.body.priority || 'medium',
-    delivery: req.body.delivery,
-    items: quotation.items,
-    requestedBy: req.user?.name || '',
-    createdBy: req.user?._id,
-  });
+  const [, , po] = await Promise.all([
+    Quotation.updateMany(
+      { rfqId: quotation.rfqId, _id: { $ne: quotation._id }, status: { $ne: 'Awarded' }, createdBy: req.user._id },
+      { status: 'Rejected' }
+    ),
+    quotation.rfqId
+      ? RFQ.findOneAndUpdate({ code: quotation.rfqId, createdBy: req.user._id }, { status: 'Awarded' })
+      : Promise.resolve(null),
+    PurchaseOrder.create({
+      code: poCode,
+      vendor: quotation.vendor,
+      vendorId: quotation.vendorId,
+      rfqId: quotation.rfqId,
+      quotationId: quotation.code,
+      amount: quotation.amount,
+      status: 'Draft',
+      priority: req.body.priority || 'medium',
+      delivery: req.body.delivery,
+      items: quotation.items,
+      requestedBy: req.user?.name || '',
+      createdBy: req.user?._id,
+    }),
+  ]);
 
   await notify.record({
     userId: req.user?._id,

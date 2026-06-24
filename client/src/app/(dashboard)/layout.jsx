@@ -76,9 +76,8 @@ export default function DashboardLayout({ children }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fffdf7]">
         <div className="text-center">
-          <div className="w-12 h-12 mx-auto rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center mb-4 animate-pulse">
-            <span className="text-slate-900 font-black text-xl">W</span>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/wolf-w.png" alt="Wolf ERP" className="w-12 h-12 mx-auto object-contain mb-4 animate-pulse" />
           <p className="text-slate-600">Loading...</p>
         </div>
       </div>
@@ -101,9 +100,8 @@ export default function DashboardLayout({ children }) {
         {/* Logo */}
         <div className="flex items-center justify-between h-20 px-6 border-b border-slate-800">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-600/20">
-              <span className="text-slate-900 font-black text-xl">W</span>
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/wolf-icon.png" alt="Wolf ERP" className="w-10 h-10 rounded-xl object-contain" />
             <div>
               <h1 className="text-xl font-bold tracking-tight">Wolf</h1>
               <p className="text-xs text-slate-400 -mt-0.5">Procurement ERP</p>

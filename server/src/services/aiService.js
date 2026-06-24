@@ -162,6 +162,30 @@ async function groqText({ system, prompt, maxTokens }) {
   return (data.choices?.[0]?.message?.content || '').trim();
 }
 
+// Low-level Groq chat completion that supports tool/function calling. Returns
+// the raw assistant message ({ role, content, tool_calls }) so the caller can
+// run an agent loop. Used by ragService for the agentic chat.
+async function groqComplete({ messages, tools, maxTokens = 1200, temperature = 0.2 }) {
+  if (!groqEnabled) throw new Error('Groq is not configured (GROQ_API_KEY).');
+  const payload = { model: groqModel, messages, max_tokens: maxTokens, temperature };
+  if (tools && tools.length) {
+    payload.tools = tools;
+    payload.tool_choice = 'auto';
+  }
+  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.GROQ_API_KEY}` },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(AI_HTTP_TIMEOUT_MS),
+  });
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => '');
+    throw new Error(`Groq ${resp.status}: ${body.slice(0, 200)}`);
+  }
+  const data = await resp.json();
+  return data.choices?.[0]?.message || { role: 'assistant', content: '' };
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -228,8 +252,10 @@ module.exports = {
   provider,
   model,
   AiDisabledError,
+  groqEnabled,
   generateText,
   generateChat,
+  groqComplete,
   generateJSON,
   withRetry, // shared transient-error retry, reused by embeddingService
 };

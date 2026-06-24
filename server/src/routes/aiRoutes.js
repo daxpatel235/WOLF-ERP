@@ -18,6 +18,7 @@ router.get('/invoices/:id/audit', protect, ctrl.invoiceAudit);
 
 // Level 3 — conversational / RAG
 router.post('/chat', protect, ctrl.chat);
+router.post('/chat/act', protect, ctrl.chatAct); // execute a confirmed agent action
 router.post('/chat/reindex', protect, authorize('admin', 'manager'), ctrl.reindex);
 
 module.exports = router;

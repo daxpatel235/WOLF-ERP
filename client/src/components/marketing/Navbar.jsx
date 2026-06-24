@@ -29,9 +29,8 @@ export default function Navbar() {
         {/* Logo + links */}
         <div className="flex items-center gap-10">
           <Link href="/" className="flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-sm shadow-blue-500/30">
-              <span className="text-white font-black text-lg leading-none">W</span>
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/wolf-w.png" alt="Wolf ERP" className="w-8 h-8 object-contain" />
             <span className="text-2xl font-extrabold tracking-tight text-slate-900 italic">
               Wolf
             </span>

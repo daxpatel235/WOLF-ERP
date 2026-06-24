@@ -375,6 +375,23 @@ const chat = asyncHandler(async (req, res) => {
   res.json({ data: result });
 });
 
+// POST /api/ai/chat/act  { action: { tool, args } }
+// Execute an action the assistant proposed and the user confirmed (e.g. create
+// an RFQ or add a vendor). Scoped to the signed-in user.
+const chatAct = asyncHandler(async (req, res) => {
+  const action = req.body?.action;
+  if (!action || !action.tool) {
+    return res.status(422).json({ message: 'No action to perform.' });
+  }
+  const result = await rag.executeAction({
+    action,
+    owner: req.user._id,
+    userId: req.user._id,
+    userName: req.user.name,
+  });
+  res.json({ data: result });
+});
+
 // POST /api/ai/chat/reindex  { force?: boolean }
 // Rebuild the signed-in user's knowledge base (embeddings).
 const reindex = asyncHandler(async (req, res) => {
@@ -391,5 +408,6 @@ module.exports = {
   vendorRisk,
   invoiceAudit,
   chat,
+  chatAct,
   reindex,
 };

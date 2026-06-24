@@ -18,6 +18,9 @@ import {
   ShoppingCart,
   Receipt,
   RotateCcw,
+  Check,
+  Wand2,
+  ArrowRight,
 } from "lucide-react";
 import { aiApi } from "@/lib/api";
 import { useAiStatus } from "@/components/ui/ai";
@@ -35,8 +38,8 @@ const SOURCE_META = {
 const SUGGESTIONS = [
   "Which invoices are overdue?",
   "Who are my top vendors by spend?",
-  "Summarise the open RFQs",
-  "Any vendors I should be cautious about?",
+  "Create an RFQ for 10 office chairs",
+  "Add a vendor: Acme Corp, Electronics, Mumbai",
 ];
 
 const STORAGE_KEY = "wolf_ai_chat";
@@ -112,6 +115,79 @@ function SourceChips({ sources, onNavigate }) {
   );
 }
 
+// ---- confirmation card for an action the assistant wants to take ----
+const ACTION_META = {
+  create_rfq: { label: "Create RFQ", icon: FileText },
+  add_vendor: { label: "Add vendor", icon: Building2 },
+};
+
+function ActionCard({ action, status, busy, onConfirm, onCancel }) {
+  const meta = ACTION_META[action.tool] || { label: "Action", icon: Wand2 };
+  const Icon = meta.icon;
+
+  if (status === "cancelled") {
+    return (
+      <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-500">
+        Cancelled — nothing was saved.
+      </div>
+    );
+  }
+  if (status === "done") {
+    return (
+      <div className="mt-2 inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[12px] font-medium text-emerald-700">
+        <Check size={13} /> Done
+      </div>
+    );
+  }
+  return (
+    <div className="mt-2 rounded-xl border border-violet-200 bg-violet-50/70 p-3">
+      <div className="flex items-center gap-1.5 text-[12px] font-semibold text-violet-900">
+        <Wand2 size={13} /> Action proposed
+      </div>
+      <div className="mt-1.5 flex items-start gap-1.5 text-[12.5px] text-slate-700">
+        <Icon size={14} className="mt-0.5 flex-none text-violet-500" />
+        <span>{action.summary}</span>
+      </div>
+      <div className="mt-2.5 flex gap-2">
+        <button
+          type="button"
+          onClick={onConfirm}
+          disabled={busy}
+          className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-50"
+        >
+          {busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+          {meta.label}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={busy}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---- "view the thing I just created" link ----
+function ActionResultLink({ result, onNavigate }) {
+  if (!result?.href) return null;
+  const meta = result.kind === "vendor" ? SOURCE_META.vendor : SOURCE_META.rfq;
+  const Icon = meta?.icon || ArrowRight;
+  return (
+    <button
+      type="button"
+      onClick={() => onNavigate(result.href)}
+      className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-white px-3 py-1 text-[12px] font-semibold text-violet-700 transition hover:border-violet-300 hover:bg-violet-50"
+    >
+      <Icon size={12} /> View {result.code}
+      <ArrowRight size={12} />
+    </button>
+  );
+}
+
 function TypingDots() {
   return (
     <div className="flex items-center gap-1 px-1 py-1">
@@ -135,6 +211,7 @@ export default function AiChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [actingIndex, setActingIndex] = useState(null); // which proposal is being saved
 
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
@@ -191,6 +268,7 @@ export default function AiChat() {
           content: res?.data?.answer || "",
           sources: res?.data?.sources || [],
           refused: Boolean(res?.data?.refused),
+          pendingAction: res?.data?.pendingAction || null,
         },
       ]);
     } catch (e) {
@@ -205,6 +283,38 @@ export default function AiChat() {
       e.preventDefault();
       send();
     }
+  };
+
+  // ---- confirm / cancel an action the assistant proposed ----
+  const confirmAction = async (idx, action) => {
+    if (actingIndex !== null) return;
+    setError("");
+    setActingIndex(idx);
+    try {
+      const res = await aiApi.act(action);
+      const result = res?.data || {};
+      setMessages((prev) =>
+        prev.map((m, i) => (i === idx ? { ...m, actionStatus: "done" } : m))
+      );
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: result.message || "Done.",
+          actionResult: result, // { kind, code, title, href, message }
+        },
+      ]);
+    } catch (e) {
+      setError(e?.message || "Could not complete that action.");
+    } finally {
+      setActingIndex(null);
+    }
+  };
+
+  const cancelAction = (idx) => {
+    setMessages((prev) =>
+      prev.map((m, i) => (i === idx ? { ...m, actionStatus: "cancelled" } : m))
+    );
   };
 
   const navigate = (href) => {
@@ -302,7 +412,7 @@ export default function AiChat() {
                   </span>
                   <p className="text-sm font-semibold text-slate-800">Ask me anything</p>
                   <p className="mt-1 max-w-[16rem] text-xs text-slate-500">
-                    I answer from your live vendor, RFQ, quotation, PO and invoice records.
+                    I answer from your live records — and can create RFQs or add vendors for you.
                   </p>
                   <div className="mt-5 grid w-full gap-2">
                     {SUGGESTIONS.map((s) => (
@@ -350,6 +460,18 @@ export default function AiChat() {
                         <MessageBody text={m.content} />
                       </div>
                       <SourceChips sources={m.sources} onNavigate={navigate} />
+                      {m.pendingAction && (
+                        <ActionCard
+                          action={m.pendingAction}
+                          status={m.actionStatus}
+                          busy={actingIndex === i}
+                          onConfirm={() => confirmAction(i, m.pendingAction)}
+                          onCancel={() => cancelAction(i)}
+                        />
+                      )}
+                      {m.actionResult && (
+                        <ActionResultLink result={m.actionResult} onNavigate={navigate} />
+                      )}
                     </div>
                   </div>
                 )

@@ -25,6 +25,8 @@ const KnowledgeChunk = require('../models/KnowledgeChunk');
 const embeddings = require('./embeddingService');
 const ai = require('./aiService');
 const chatDomain = require('../config/chatDomain');
+const { generateCode } = require('../utils/generateId');
+const notify = require('./notificationService');
 
 const enabled = embeddings.enabled;
 
@@ -468,6 +470,93 @@ const SYSTEM = [
   '• When you cite a record, mention its code so the user can find it.',
 ].join('\n');
 
+// ---------------------------------------------------------------------------
+// Agentic actions — the assistant can DO things, not just answer. Each action
+// is proposed via a tool call; the actual write happens only after the user
+// confirms in the UI (see executeAction). This keeps the agent safe.
+// ---------------------------------------------------------------------------
+
+// Mirrors the category options in the create forms so the AI's choice maps to a
+// real dropdown value.
+const CATEGORIES = ['Office Furniture', 'Electronics', 'Raw Materials', 'IT Services', 'Travel', 'Medical', 'General'];
+
+const AGENT_SYSTEM =
+  '\n\nYou can also take actions for the user. When they clearly ask to CREATE/RAISE an RFQ ' +
+  'or to ADD/REGISTER a vendor, call the matching tool with sensible values inferred from their ' +
+  'request (and the data above). Do NOT call a tool for questions, lookups or summaries — answer ' +
+  'those directly. The action is only PROPOSED; the user confirms before anything is saved, so it ' +
+  'is safe to prepare it. After calling a tool, also write one short sentence telling the user what ' +
+  'you prepared and that they can confirm it.';
+
+const TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'create_rfq',
+      description:
+        'Prepare a new Request for Quotation (RFQ) for the user to confirm. Use when the user asks ' +
+        'to create/raise/start an RFQ or request quotes for things to procure.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Short, professional RFQ title' },
+          category: { type: 'string', enum: CATEGORIES },
+          suggestedDueInDays: { type: 'integer', description: 'Vendor response window in days (5-30)' },
+          items: {
+            type: 'array',
+            description: 'Line items to procure',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                qty: { type: 'integer' },
+                unit: { type: 'string', description: 'e.g. pcs, kg, units, licenses' },
+              },
+              required: ['name', 'qty', 'unit'],
+            },
+          },
+          notes: { type: 'string', description: 'Optional specs/requirements for vendors' },
+        },
+        required: ['title', 'category', 'suggestedDueInDays', 'items'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_vendor',
+      description:
+        'Prepare a new vendor/supplier record for the user to confirm. Use when the user asks to ' +
+        'add/create/register a vendor or supplier.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          category: { type: 'string', enum: CATEGORIES },
+          location: { type: 'string' },
+          contact: { type: 'string', description: 'Contact person name' },
+          email: { type: 'string' },
+          phone: { type: 'string' },
+          gstin: { type: 'string' },
+        },
+        required: ['name', 'category'],
+      },
+    },
+  },
+];
+
+// Human-friendly summary of a proposed action, shown on the confirm card.
+function describeAction(tool, args) {
+  if (tool === 'create_rfq') {
+    const items = (args.items || []).map((it) => `${it.qty}× ${it.name}`).join(', ') || 'no items';
+    return `Create RFQ "${args.title}" (${args.category}) — ${items}; vendors get ${args.suggestedDueInDays || 14} days.`;
+  }
+  if (tool === 'add_vendor') {
+    return `Add vendor "${args.name}" (${args.category}${args.location ? `, ${args.location}` : ''}).`;
+  }
+  return 'Proposed action.';
+}
+
 // ---- Cheap intent triage (no API cost) -----------------------------------
 // Handle greetings and "what can you do" with canned replies, and recognise
 // blatantly off-topic chatter, so we never spend tokens on them.
@@ -569,18 +658,8 @@ async function answer({ message, history = [], owner }) {
     return { answer: CANNED.outOfScope, sources: [], refused: true };
   }
 
-  // Layer 3 — grounded generation (the system prompt is a final backstop).
-  // The snapshot gives whole-account figures; the context gives specific records.
-  const context = buildContext(chunks);
-  const text = await ai.generateChat({
-    system: SYSTEM,
-    maxTokens: 1500,
-    prompt:
-      `${snapshot}\n\nCONTEXT (specific records):\n${context}` +
-      `${buildHistory(history)}\n\nUser question: ${message}\n\nAnswer:`,
-  });
-
-  // De-duplicate sources for citation chips in the UI.
+  // De-duplicate sources for citation chips in the UI (computed up front so both
+  // the answer and any action response can carry them).
   const seen = new Set();
   const sources = [];
   for (const c of chunks) {
@@ -591,7 +670,136 @@ async function answer({ message, history = [], owner }) {
     }
   }
 
-  return { answer: text, sources, refused: false };
+  // Layer 3 — grounded generation. When Groq is configured we run an AGENTIC
+  // turn: the model can either answer from the data, or PROPOSE an action
+  // (create RFQ / add vendor) via a tool call that the user confirms. Without
+  // Groq we fall back to the plain grounded answer (no actions).
+  const context = buildContext(chunks);
+  const userPrompt =
+    `${snapshot}\n\nCONTEXT (specific records):\n${context}` +
+    `${buildHistory(history)}\n\nUser request: ${message}`;
+
+  if (!ai.groqEnabled) {
+    const text = await ai.generateChat({
+      system: SYSTEM,
+      maxTokens: 1500,
+      prompt: `${userPrompt}\n\nAnswer:`,
+    });
+    return { answer: text, sources, refused: false };
+  }
+
+  const msg = await ai.groqComplete({
+    maxTokens: 1500,
+    tools: TOOLS,
+    messages: [
+      { role: 'system', content: SYSTEM + AGENT_SYSTEM },
+      { role: 'user', content: userPrompt },
+    ],
+  });
+
+  // Did the model propose an action? If so, return it for confirmation instead
+  // of writing anything now.
+  const call = msg.tool_calls?.find((c) => c.function?.name === 'create_rfq' || c.function?.name === 'add_vendor');
+  if (call) {
+    let args = {};
+    try {
+      args = JSON.parse(call.function.arguments || '{}');
+    } catch {
+      args = {};
+    }
+    const tool = call.function.name;
+    const answerText =
+      (msg.content && msg.content.trim()) ||
+      `I've prepared this for you — review and confirm to save it.`;
+    logger.info(`RAG agent proposed action: ${tool} for owner ${owner}`);
+    return {
+      answer: answerText,
+      sources,
+      refused: false,
+      pendingAction: { tool, args, summary: describeAction(tool, args) },
+    };
+  }
+
+  return { answer: (msg.content || '').trim(), sources, refused: false };
+}
+
+// ---------------------------------------------------------------------------
+// Execute a user-confirmed action (the write half of the agent). Owner-scoped
+// and reusing the same models/codes as the normal controllers.
+// ---------------------------------------------------------------------------
+async function executeAction({ action, owner, userId, userName }) {
+  if (!owner) {
+    const e = new Error('Action requires an authenticated user.');
+    e.statusCode = 401;
+    throw e;
+  }
+  const tool = action?.tool;
+  const args = action?.args || {};
+
+  if (tool === 'create_rfq') {
+    if (!args.title) {
+      const e = new Error('The RFQ needs a title.');
+      e.statusCode = 422;
+      throw e;
+    }
+    const code = await generateCode(RFQ, { prefix: 'RFQ', year: true, pad: 3 });
+    const days = Number(args.suggestedDueInDays) || 14;
+    const rfq = await RFQ.create({
+      code,
+      title: args.title,
+      category: args.category || 'General',
+      status: 'Draft',
+      due: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
+      items: (args.items || []).map((it) => ({ name: it.name, qty: Number(it.qty) || 1, unit: it.unit || 'units' })),
+      notes: args.notes || '',
+      createdBy: owner,
+    });
+    await notify.record({
+      userId,
+      actor: userName || 'Wolf AI',
+      action: 'created',
+      entityType: 'RFQ',
+      entityId: code,
+      message: `RFQ "${rfq.title}" (${code}) created via AI assistant`,
+    });
+    logger.info(`RAG agent created RFQ ${code} for owner ${owner}`);
+    return { kind: 'rfq', code, title: rfq.title, href: `/rfqs/${code}`, message: `Created RFQ ${code} — "${rfq.title}". It's a draft you can review, invite vendors, and publish.` };
+  }
+
+  if (tool === 'add_vendor') {
+    if (!args.name) {
+      const e = new Error('The vendor needs a name.');
+      e.statusCode = 422;
+      throw e;
+    }
+    const code = await generateCode(Vendor, { prefix: 'V', start: 1001, pad: 4 });
+    const vendor = await Vendor.create({
+      code,
+      name: args.name,
+      category: args.category || 'General',
+      status: 'Active',
+      location: args.location || '',
+      contact: args.contact || '',
+      email: args.email || '',
+      phone: args.phone || '',
+      gstin: args.gstin || '',
+      createdBy: owner,
+    });
+    await notify.record({
+      userId,
+      actor: userName || 'Wolf AI',
+      action: 'created',
+      entityType: 'Vendor',
+      entityId: code,
+      message: `Vendor ${vendor.name} (${code}) added via AI assistant`,
+    });
+    logger.info(`RAG agent added vendor ${code} for owner ${owner}`);
+    return { kind: 'vendor', code, title: vendor.name, href: `/vendors/${code}`, message: `Added vendor ${code} — ${vendor.name}.` };
+  }
+
+  const e = new Error('Unknown action.');
+  e.statusCode = 400;
+  throw e;
 }
 
 async function stats() {
@@ -603,4 +811,4 @@ async function stats() {
   };
 }
 
-module.exports = { enabled, reindex, retrieve, answer, stats };
+module.exports = { enabled, reindex, retrieve, answer, executeAction, stats };

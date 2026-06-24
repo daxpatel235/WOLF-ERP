@@ -42,9 +42,8 @@ export default function Footer() {
           {/* Brand */}
           <div className="col-span-2">
             <Link href="/" className="flex items-center gap-2 mb-4">
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-                <span className="text-white font-black text-lg leading-none">W</span>
-              </span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/wolf-icon.png" alt="Wolf ERP" className="w-8 h-8 rounded-lg object-contain" />
               <span className="text-2xl font-extrabold tracking-tight text-white italic">
                 Wolf
               </span>

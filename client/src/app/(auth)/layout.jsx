@@ -9,9 +9,8 @@ export default function AuthLayout({ children }) {
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#fffdf7] px-4 py-10">
       {/* Brand */}
       <Link href="/" className="flex items-center gap-3 mb-6">
-        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg shadow-blue-600/20">
-          <span className="text-slate-900 font-black text-xl">W</span>
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/wolf-w.png" alt="Wolf ERP" className="w-11 h-11 object-contain" />
         <div className="leading-tight">
           <h1 className="text-xl font-bold tracking-tight text-slate-900">Wolf</h1>
           <p className="text-xs text-slate-500 -mt-0.5">Procurement ERP</p>

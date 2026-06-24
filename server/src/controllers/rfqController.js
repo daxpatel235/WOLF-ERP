@@ -6,6 +6,18 @@ const { generateCode } = require('../utils/generateId');
 const notify = require('../services/notificationService');
 const { openApproval } = require('../services/approvalEngine');
 const { sendRFQInvite } = require('../services/emailService');
+const logger = require('../utils/logger');
+
+// Fire RFQ invite emails in the background. Emails are best-effort (sendMail
+// never throws), so we don't await them — SMTP latency must never hold up the
+// HTTP response (the classic "publish is slow / server timed out" symptom).
+function sendInvitesInBackground(vendors, rfq) {
+  const targets = (vendors || []).filter((v) => v.email);
+  if (!targets.length) return;
+  Promise.all(targets.map((v) => sendRFQInvite(v.email, rfq))).catch((err) =>
+    logger.warn(`RFQ ${rfq.code} invite emails failed: ${err.message}`)
+  );
+}
 
 // Attach the live "received" count (quotations) to an RFQ JSON object.
 async function withCounts(rfqDocs, owner) {
@@ -43,23 +55,46 @@ const getOne = asyncHandler(async (req, res) => {
   res.json({ data, quotations: quotations.map((q) => q.toJSON()) });
 });
 
-// POST /api/rfqs
+// POST /api/rfqs   { ..., publish?: boolean }
+// When `publish` is true the RFQ is created AND published in a single request:
+// status → Published and invited vendors are emailed in the background. This
+// removes the second round-trip (create then publish) the wizard used to pay.
 const create = asyncHandler(async (req, res) => {
   const code = await generateCode(RFQ, { prefix: 'RFQ', year: true, pad: 3 });
+  const { publish: publishFlag, ...fields } = req.body;
+  const publishNow = publishFlag === true || fields.status === 'Published';
+
   const rfq = await RFQ.create({
-    ...req.body,
+    ...fields,
     code,
+    status: publishNow ? 'Published' : fields.status || 'Draft',
     createdBy: req.user?._id,
   });
+
+  let invitedCount = 0;
+  if (publishNow) {
+    const vendors = await Vendor.find({
+      code: { $in: rfq.invitedVendors || [] },
+      createdBy: req.user._id,
+    }).select('email');
+    invitedCount = vendors.length;
+    sendInvitesInBackground(vendors, rfq);
+  }
+
   await notify.record({
     userId: req.user?._id,
     actor: req.user?.name || 'System',
-    action: 'created',
+    action: publishNow ? 'published' : 'created',
     entityType: 'RFQ',
     entityId: code,
-    message: `RFQ "${rfq.title}" (${code}) created`,
+    message: publishNow
+      ? `RFQ "${rfq.title}" (${code}) published to ${invitedCount} vendor(s)`
+      : `RFQ "${rfq.title}" (${code}) created`,
   });
-  res.status(201).json({ data: { ...rfq.toJSON(), invited: (rfq.invitedVendors || []).length, received: 0 } });
+
+  res
+    .status(201)
+    .json({ data: { ...rfq.toJSON(), invited: (rfq.invitedVendors || []).length, received: 0 } });
 });
 
 // PUT /api/rfqs/:id
@@ -83,9 +118,10 @@ const publish = asyncHandler(async (req, res) => {
   rfq.status = 'Published';
   await rfq.save();
 
-  // Best-effort invitations.
+  // Best-effort invitations, sent in the background so SMTP latency never holds
+  // up the response (see sendInvitesInBackground).
   const vendors = await Vendor.find({ code: { $in: rfq.invitedVendors || [] }, createdBy: req.user._id }).select('email');
-  await Promise.all(vendors.filter((v) => v.email).map((v) => sendRFQInvite(v.email, rfq)));
+  sendInvitesInBackground(vendors, rfq);
 
   await notify.record({
     userId: req.user?._id,
