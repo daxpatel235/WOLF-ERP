@@ -1,20 +1,51 @@
 # Keeps the free-tier Render backend awake so the live demo doesn't pay a
-# 30-50s cold-start penalty on the first request. Pings the health endpoint
-# on a schedule. (GitHub cron is best-effort and can be delayed several
-# minutes; for tighter intervals use an external pinger like UptimeRobot.)
+# 30-60s cold-start penalty on the first request. Pings the readiness endpoint
+# on a schedule.
+#
+# Caveats to know:
+#  - Render free instances sleep after ~15 min of no inbound traffic.
+#  - GitHub's cron is BEST-EFFORT and is often delayed several minutes (and can
+#    skip runs under load), so the nominal interval is set tighter than 15 min
+#    to leave headroom. The retry below means a run that lands on an
+#    already-slept server still wakes it (that one run just waits for the boot).
+#  - GitHub auto-DISABLES scheduled workflows after 60 days of no repo activity
+#    — push a commit or re-enable it in the Actions tab to resume.
+#  - Actions minutes are free/unlimited on public repos. On a PRIVATE repo each
+#    run is billed (rounded up to 1 min) against the 2000 min/month free tier;
+#    at every 5 min that exceeds the free tier, so widen to "*/13 * * * *" or
+#    use an external monitor (UptimeRobot / cron-job.org) instead.
 name: keep-warm
 
 on:
   schedule:
-    - cron: "*/10 * * * *" # every 10 minutes
-  workflow_dispatch: {} # allow manual runs
+    - cron: "*/5 * * * *" # every 5 minutes (nominal; GitHub may run it later)
+  workflow_dispatch: {} # allow manual runs from the Actions tab
+
+# Never let pings pile up if one run is slow waking a cold server.
+concurrency:
+  group: keep-warm
+  cancel-in-progress: true
+
+permissions: {} # this job needs no repo access
 
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      # Override in repo Settings → Secrets and variables → Actions → Variables
+      # (name: API_BASE_URL) if the backend URL ever changes.
+      API_BASE_URL: ${{ vars.API_BASE_URL || 'https://wolf-erp-api.onrender.com' }}
     steps:
-      - name: Ping API health
+      - name: Ping API readiness (wake if cold)
         run: |
-          curl -fsS --max-time 60 https://wolf-erp-api.onrender.com/api/health \
-            && echo " — backend is awake" \
-            || echo "ping failed (backend may be cold-starting)"
+          # --retry 5 with backoff so a single cold-start (~30-60s) is ridden
+          # out within this one run instead of being reported as a failure.
+          if curl -fsS --max-time 90 \
+               --retry 5 --retry-delay 15 --retry-all-errors \
+               "$API_BASE_URL/api/health"; then
+            echo " — backend is awake"
+          else
+            echo "::warning::keep-warm ping failed for $API_BASE_URL (backend may be cold-starting or down)"
+            exit 1
+          fi
