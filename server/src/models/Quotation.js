@@ -19,6 +19,9 @@ const quotationSchema = new mongoose.Schema(
     submitted: { type: Date, default: Date.now },
     items: { type: [lineItemFields], default: [] },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
+    // Owning workspace (team collaboration, Phase 1). Becomes the isolation
+    // boundary in Phase 2; `createdBy` stays as the authoring user.
+    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null, index: true },
   },
   baseOptions()
 );

@@ -17,6 +17,10 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true, minlength: 6, select: true },
     role: { type: String, enum: ROLES, default: 'buyer' },
     company: { type: String, trim: true, default: '' },
+    // The workspace this account belongs to (team collaboration, Phase 1). Every
+    // new account gets its own org on register; existing accounts are backfilled
+    // by scripts/migrateToOrganizations.js. Nullable until that migration runs.
+    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null, index: true },
     status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
     // Drives the dormancy cleanup: if no user has logged in for N days, every
     // collection except User is wiped. Defaults to now so fresh accounts count

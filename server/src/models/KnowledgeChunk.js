@@ -15,6 +15,9 @@ const knowledgeChunkSchema = new mongoose.Schema(
     // signed-in user, so retrieval (and re-indexing) only ever touches the
     // owner's own records — never another account's data.
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    // Owning workspace (team collaboration, Phase 1). Becomes the RAG retrieval
+    // scope in Phase 2; `owner` stays as the indexing user.
+    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null, index: true },
     // Source record identity, e.g. source='vendor', sourceId='V-1003'.
     source: {
       type: String,

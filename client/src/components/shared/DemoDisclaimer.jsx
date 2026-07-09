@@ -10,7 +10,7 @@ export default function DemoDisclaimer({ className = "" }) {
     >
       <Info size={15} className="mt-0.5 shrink-0 text-blue-500" />
       <p className="leading-relaxed">
-        <span className="font-semibold text-slate-600">Demo project by Dax Patel.</span>{" "}
+        <span className="font-semibold text-slate-600">Demo project.</span>{" "}
         Anything you add here is for demonstration only and is automatically
         cleared after{" "}
         <span className="font-medium text-slate-600">30 days of inactivity</span>

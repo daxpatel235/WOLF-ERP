@@ -81,7 +81,7 @@ export default function DemoNotice() {
             <X size={18} />
           </button>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-white/80">
-            Wolf ERP · Demo by Dax Patel
+            Wolf ERP · Demo
           </p>
           <h2 className="mt-1 text-xl font-bold leading-tight">{notice.title}</h2>
         </div>

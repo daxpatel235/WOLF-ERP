@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
+const Organization = require('../models/Organization');
 const env = require('../config/env');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { sendMail } = require('../services/emailService');
@@ -13,7 +14,6 @@ function signToken(user) {
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const DEMO_AUTHOR = 'Dax Patel';
 
 // Shown on a brand-new account's first sign-in.
 function welcomeNotice() {
@@ -21,7 +21,7 @@ function welcomeNotice() {
     kind: 'welcome',
     title: 'Welcome to Wolf ERP',
     message:
-      `This is a demo project by ${DEMO_AUTHOR}. Explore freely and add data — ` +
+      `This is a demo project. Explore freely and add data — ` +
       `but heads-up: if you don't sign in for ${env.CLEANUP_INACTIVE_DAYS} days, all of your ` +
       `data is automatically wiped to keep the demo lean. Your login always stays.`,
   };
@@ -35,7 +35,7 @@ function dataWipedNotice(awayDays) {
     title: 'Your demo data was reset',
     message:
       `You were away for ${awayDays} days, so your workspace data was wiped. ` +
-      `This is a demo project by ${DEMO_AUTHOR}: data left idle for ${env.CLEANUP_INACTIVE_DAYS}+ days ` +
+      `This is a demo project: data left idle for ${env.CLEANUP_INACTIVE_DAYS}+ days ` +
       `is cleared automatically. Your login is intact — start fresh anytime.`,
   };
 }
@@ -55,6 +55,18 @@ const register = asyncHandler(async (req, res) => {
   // loginCount starts at 1: registering auto-signs them in, so a later manual
   // login shouldn't re-trigger the first-login welcome.
   const user = await User.create({ name, email, password, role: safeRole, company, loginCount: 1 });
+
+  // Team collaboration (Phase 1): every new account owns a fresh workspace. The
+  // org is the future isolation boundary; for now records still scope by
+  // createdBy, so this changes no existing behaviour. updateOne (not save)
+  // avoids re-running the password-hash hook.
+  const org = await Organization.create({
+    name: (company && company.trim()) || `${user.name}'s Workspace`,
+    ownerId: user._id,
+  });
+  await User.updateOne({ _id: user._id }, { $set: { organization: org._id } });
+  user.organization = org._id; // reflect on the doc we return/sign below
+
   await notify.record({ userId: user._id, actor: user.name, action: 'registered', entityType: 'User', message: `${user.name} created an account` });
 
   const token = signToken(user);

@@ -8,6 +8,9 @@ const activityLogSchema = new mongoose.Schema(
     // signed-in user, so each account only sees its own activity (events
     // without a userId — e.g. seed/system entries — never surface in a feed).
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    // Owning workspace (team collaboration, Phase 1). Becomes the feed's scope
+    // boundary in Phase 2; `userId` stays as the acting user.
+    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null, index: true },
     actor: { type: String, default: 'System' }, // user name
     action: { type: String, required: true }, // 'created' | 'approved' | 'paid' | ...
     entityType: { type: String, default: '' }, // 'Vendor' | 'PurchaseOrder' | ...
