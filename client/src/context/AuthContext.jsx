@@ -2,7 +2,8 @@
 
 import { createContext, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { authApi } from "@/lib/api";
+import { authApi, teamApi } from "@/lib/api";
+import { clearFetchCache } from "@/hooks/useFetch";
 import { saveSession, clearSession, getStoredUser, setAuthCookie, isTokenExpired } from "@/lib/utils";
 import { TOKEN_KEY } from "@/lib/constants";
 
@@ -12,6 +13,11 @@ export function AuthProvider({ children }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true); // true until first hydration
+  // The workspace the user belongs to, and the capabilities they actually hold
+  // — the SAME answer the server enforces, so the UI can never offer an action
+  // the API would reject. `null` while unknown (before the first /me lands).
+  const [organization, setOrganization] = useState(null);
+  const [permissions, setPermissions] = useState(null);
   // One-shot demo disclaimer returned by the server on login/register
   // (first-login welcome, or "your data was wiped after 30 days idle").
   const [notice, setNotice] = useState(null);
@@ -53,7 +59,11 @@ export function AuthProvider({ children }) {
 
     authApi
       .me()
-      .then((res) => setUser(res.user))
+      .then((res) => {
+        setUser(res.user);
+        setOrganization(res.organization || null);
+        setPermissions(res.permissions || {});
+      })
       .catch((err) => {
         // Only drop the session when the server actively rejects the token
         // (401 invalid/expired, 403 inactive account). A network failure
@@ -62,29 +72,45 @@ export function AuthProvider({ children }) {
         // Keep the hydrated user; the next authenticated request will retry.
         if (err?.status === 401 || err?.status === 403) {
           clearSession();
+          clearFetchCache();
           setUser(null);
+          setOrganization(null);
+          setPermissions(null);
         }
       })
       .finally(() => setLoading(false));
   }, []);
 
-  const login = useCallback(async (credentials, remember = false) => {
-    const res = await authApi.login(credentials);
+  // Adopt the workspace context the server returns alongside the user.
+  const adoptSession = useCallback((res, remember) => {
+    // Start every session with an empty cache: whoever was signed in before on
+    // this device must leave nothing behind for the incoming account to see.
+    clearFetchCache();
     saveSession(res.token, res.user, remember);
     loggingOut.current = false;
     setUser(res.user);
+    setOrganization(res.organization || null);
+    setPermissions(res.permissions || {});
     setNotice(res.notice || null);
     return res.user;
   }, []);
 
-  const register = useCallback(async (data) => {
-    const res = await authApi.register(data);
-    saveSession(res.token, res.user, true);
-    loggingOut.current = false;
-    setUser(res.user);
-    setNotice(res.notice || null);
-    return res.user;
-  }, []);
+  const login = useCallback(
+    async (credentials, remember = false) => adoptSession(await authApi.login(credentials), remember),
+    [adoptSession]
+  );
+
+  const register = useCallback(
+    async (data) => adoptSession(await authApi.register(data), true),
+    [adoptSession]
+  );
+
+  // Join an existing workspace from an emailed invitation. The server creates
+  // the account inside the inviting org and signs them straight in.
+  const acceptInvite = useCallback(
+    async (data) => adoptSession(await teamApi.accept(data), true),
+    [adoptSession]
+  );
 
   const clearNotice = useCallback(() => setNotice(null), []);
 
@@ -92,9 +118,25 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     loggingOut.current = true;
     clearSession();
+    // Cached responses belong to the account that fetched them — drop them so
+    // the next sign-in on this device can never paint the previous user's data.
+    clearFetchCache();
     setUser(null);
+    setOrganization(null);
+    setPermissions(null);
     router.push("/");
   }, [router]);
+
+  // Mirrors the server's `can()` guard. Unknown (still loading) → false, so we
+  // never flash an action the user may not have.
+  const can = useCallback((permission) => permissions?.[permission] === true, [permissions]);
+
+  // Re-read the workspace + permissions (e.g. after the owner changes settings).
+  const refreshOrganization = useCallback(async () => {
+    const res = await authApi.me();
+    setOrganization(res.organization || null);
+    setPermissions(res.permissions || {});
+  }, []);
 
   const value = {
     user,
@@ -103,9 +145,15 @@ export function AuthProvider({ children }) {
     loggingOut,
     login,
     register,
+    acceptInvite,
     logout,
     notice,
     clearNotice,
+    organization,
+    permissions,
+    can,
+    isOwner: Boolean(organization?.isOwner),
+    refreshOrganization,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

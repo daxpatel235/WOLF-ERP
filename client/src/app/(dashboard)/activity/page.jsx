@@ -24,7 +24,7 @@ function activityIcon(action = "") {
 }
 
 export default function ActivityPage() {
-  const { data, loading } = useFetch(() => reportsApi.activity(100), []);
+  const { data, loading } = useFetch(() => reportsApi.activity(100), [], { key: "reports:activity:100" });
   const items = data?.data || [];
 
   return (

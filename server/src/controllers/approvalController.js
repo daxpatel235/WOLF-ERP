@@ -1,11 +1,12 @@
 const Approval = require('../models/Approval');
 const { asyncHandler } = require('../middleware/errorHandler');
 const approvalEngine = require('../services/approvalEngine');
+const { orgFilter } = require('../utils/scope');
 
 // GET /api/approvals?status=Pending
 const list = asyncHandler(async (req, res) => {
   const { status } = req.query;
-  const filter = { createdBy: req.user._id };
+  const filter = orgFilter(req);
   if (status && status !== 'All') filter.status = status;
 
   const approvals = await Approval.find(filter).sort({ date: -1 });
@@ -24,7 +25,7 @@ const list = asyncHandler(async (req, res) => {
 
 // GET /api/approvals/count  (for the sidebar badge)
 const count = asyncHandler(async (req, res) => {
-  const pending = await Approval.countDocuments({ status: 'Pending', createdBy: req.user._id });
+  const pending = await Approval.countDocuments(orgFilter(req, { status: 'Pending' }));
   res.json({ pending });
 });
 
@@ -37,6 +38,7 @@ const decide = asyncHandler(async (req, res) => {
     decidedBy: req.user?.name || '',
     comment,
     userId: req.user?._id,
+    organization: req.user?.organization,
   });
   res.json({ data: approval.toJSON(), entity: entity ? entity.toJSON() : null });
 });

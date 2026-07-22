@@ -18,16 +18,17 @@ const rfqSchema = new mongoose.Schema(
     items: { type: [lineItemFields], default: [] },
     notes: { type: String, default: '' },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    // Owning workspace (team collaboration, Phase 1). Becomes the isolation
-    // boundary in Phase 2; `createdBy` stays as the authoring user.
-    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null, index: true },
+    // Owning workspace — the isolation boundary (team collaboration). Covered by
+    // the { organization, status } compound index below; `createdBy` stays as the
+    // authoring user.
+    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null },
   },
   baseOptions()
 );
 
-// Dashboard/listing queries always scope by owner, often plus status. The
-// compound also serves owner-only lookups via its leading-field prefix.
-rfqSchema.index({ createdBy: 1, status: 1 });
+// Dashboard/listing queries always scope by organization, often plus status.
+// The compound also serves org-only lookups via its leading-field prefix.
+rfqSchema.index({ organization: 1, status: 1 });
 
 // `invited` mirrors the count of invited vendors for the list UI.
 rfqSchema.virtual('invited').get(function getInvited() {

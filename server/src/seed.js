@@ -12,6 +12,7 @@ const logger = require('./utils/logger');
 const env = require('./config/env');
 
 const User = require('./models/User');
+const Organization = require('./models/Organization');
 const Vendor = require('./models/Vendor');
 const RFQ = require('./models/RFQ');
 const Quotation = require('./models/Quotation');
@@ -19,6 +20,9 @@ const PurchaseOrder = require('./models/PurchaseOrder');
 const Invoice = require('./models/Invoice');
 const Approval = require('./models/Approval');
 const ActivityLog = require('./models/ActivityLog');
+const Invitation = require('./models/Invitation');
+const Channel = require('./models/Channel');
+const Message = require('./models/Message');
 
 const users = [
   { name: 'Sneha Rao', email: 'manager@wolferp.in', password: 'manager123', role: 'manager', company: 'Wolf ERP' },
@@ -82,6 +86,7 @@ async function seedDatabase() {
   logger.info('Clearing existing collections...');
   await Promise.all([
     User.deleteMany({}),
+    Organization.deleteMany({}),
     Vendor.deleteMany({}),
     RFQ.deleteMany({}),
     Quotation.deleteMany({}),
@@ -89,6 +94,9 @@ async function seedDatabase() {
     Invoice.deleteMany({}),
     Approval.deleteMany({}),
     ActivityLog.deleteMany({}),
+    Invitation.deleteMany({}),
+    Channel.deleteMany({}),
+    Message.deleteMany({}),
   ]);
 
   // Users go through .create() so passwords are hashed by the pre-save hook.
@@ -107,12 +115,25 @@ async function seedDatabase() {
     logger.info(`Seeded admin account: ${env.SEED_ADMIN_EMAIL}`);
   }
 
-  // The demo workspace belongs to one account (the manager). Data is now
-  // per-account, so every seeded record is owned by them; brand-new sign-ups
-  // start with an empty workspace of their own.
+  // Team collaboration: the seeded users share ONE workspace (organization) so
+  // the demo shows a team collaborating out of the box — the manager creates the
+  // data and the approver, in the same org, sees it and signs off. `organization`
+  // is the isolation boundary; `createdBy` is kept as the authoring user.
   const owner = await User.findOne({ email: 'manager@wolferp.in' });
   const ownerId = owner ? owner._id : undefined;
-  const own = (arr) => arr.map((r) => ({ ...r, createdBy: ownerId }));
+  const org = await Organization.create({ name: 'Wolf ERP', ownerId });
+  await User.updateMany({}, { $set: { organization: org._id } });
+
+  // The owner implicitly holds every capability. Everyone else gets the
+  // workspace defaults, and the approver additionally gets sign-off rights —
+  // otherwise the seeded approver could not approve anything.
+  await User.updateMany(
+    { _id: { $ne: ownerId } },
+    { $set: { permissions: { ...Organization.DEFAULT_MEMBER_PERMISSIONS } } }
+  );
+  await User.updateOne({ email: 'approver@wolferp.in' }, { $set: { 'permissions.canApprove': true } });
+
+  const own = (arr) => arr.map((r) => ({ ...r, createdBy: ownerId, organization: org._id }));
 
   logger.info('Seeding business data...');
   await Vendor.insertMany(own(vendors));
@@ -121,7 +142,7 @@ async function seedDatabase() {
   await PurchaseOrder.insertMany(own(purchaseOrders));
   await Invoice.insertMany(own(invoices));
   await Approval.insertMany(own(approvals));
-  await ActivityLog.create({ userId: ownerId, actor: 'System', action: 'seeded', message: 'Demo data loaded' });
+  await ActivityLog.create({ userId: ownerId, organization: org._id, actor: 'System', action: 'seeded', message: 'Demo data loaded' });
 
   logger.info('Seed complete! Login: manager@wolferp.in / manager123 (also approver@wolferp.in / approver123)');
 }

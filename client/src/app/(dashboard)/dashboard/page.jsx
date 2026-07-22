@@ -53,9 +53,9 @@ const priorityPill = (p) =>
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { data: summaryRes, loading: loadingSummary } = useFetch(() => reportsApi.summary(), []);
-  const { data: activityRes } = useFetch(() => reportsApi.activity(6), []);
-  const { data: approvalsRes } = useFetch(() => approvalsApi.list({ status: "Pending" }), []);
+  const { data: summaryRes, loading: loadingSummary } = useFetch(() => reportsApi.summary(), [], { key: "reports:summary" });
+  const { data: activityRes } = useFetch(() => reportsApi.activity(6), [], { key: "reports:activity:6" });
+  const { data: approvalsRes } = useFetch(() => approvalsApi.list({ status: "Pending" }), [], { key: "approvals:pending" });
 
   const s = summaryRes?.data;
   const stats = [

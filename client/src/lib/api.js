@@ -114,6 +114,36 @@ export const authApi = {
     request("/auth/reset-password", { method: "POST", body: { token, password }, auth: false }),
 };
 
+// Team collaboration: the member directory and invitations.
+export const teamApi = {
+  members: () => request("/team/members"),
+  invite: (body) => request("/team/invite", { method: "POST", body }),
+  invites: () => request("/team/invites"),
+  revokeInvite: (id) => request(`/team/invites/${id}`, { method: "DELETE" }),
+  updateMember: (id, body) => request(`/team/members/${id}`, { method: "PATCH", body }),
+  removeMember: (id) => request(`/team/members/${id}`, { method: "DELETE" }),
+  // Public — the invitee has no account yet.
+  previewInvite: (token) => request(`/team/invite/${token}`, { auth: false }),
+  accept: (body) => request("/team/accept", { method: "POST", body, auth: false }),
+};
+
+// The workspace profile + settings that drive "organization mode".
+export const organizationApi = {
+  get: () => request("/organization"),
+  update: (body) => request("/organization", { method: "PATCH", body }),
+};
+
+// Team chat. Messages are polled with an ObjectId cursor: pass the previous
+// response's `cursor` as `after` and you only ever receive what's new.
+export const chatApi = {
+  channels: () => request("/chat/channels"),
+  createChannel: (body) => request("/chat/channels", { method: "POST", body }),
+  messages: (channelId, { after, limit } = {}) =>
+    request(`/chat/channels/${channelId}/messages${qs({ after, limit })}`),
+  send: (channelId, body) =>
+    request(`/chat/channels/${channelId}/messages`, { method: "POST", body: { body } }),
+};
+
 export const vendorsApi = {
   list: (params) => request(`/vendors${qs(params)}`),
   get: (id) => request(`/vendors/${id}`),

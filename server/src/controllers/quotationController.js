@@ -6,11 +6,12 @@ const { generateCode } = require('../utils/generateId');
 const { sumItems } = require('../utils/schema');
 const { compareRfq } = require('../services/comparisonService');
 const notify = require('../services/notificationService');
+const { orgFilter, orgStamp } = require('../utils/scope');
 
 // GET /api/quotations
 const list = asyncHandler(async (req, res) => {
   const { q, status, rfqId, vendorId } = req.query;
-  const filter = { createdBy: req.user._id };
+  const filter = orgFilter(req);
   if (status && status !== 'All') filter.status = status;
   if (rfqId) filter.rfqId = rfqId;
   if (vendorId) filter.vendorId = vendorId;
@@ -24,12 +25,12 @@ const list = asyncHandler(async (req, res) => {
 const compare = asyncHandler(async (req, res) => {
   const { rfqId } = req.query;
   if (!rfqId) return res.status(400).json({ message: 'rfqId query parameter is required.' });
-  res.json({ data: await compareRfq(rfqId, req.user._id) });
+  res.json({ data: await compareRfq(rfqId, req.user.organization) });
 });
 
 // GET /api/quotations/:id
 const getOne = asyncHandler(async (req, res) => {
-  const quotation = await Quotation.findOne({ code: req.params.id, createdBy: req.user._id });
+  const quotation = await Quotation.findOne(orgFilter(req, { code: req.params.id }));
   if (!quotation) return res.status(404).json({ message: 'Quotation not found.' });
   res.json({ data: quotation.toJSON() });
 });
@@ -43,13 +44,14 @@ const create = asyncHandler(async (req, res) => {
   // Denormalize the RFQ title for display if we can find it.
   let rfqTitle = req.body.rfqTitle || '';
   if (req.body.rfqId && !rfqTitle) {
-    const rfq = await RFQ.findOne({ code: req.body.rfqId, createdBy: req.user._id }).select('title');
+    const rfq = await RFQ.findOne(orgFilter(req, { code: req.body.rfqId })).select('title');
     rfqTitle = rfq?.title || '';
   }
 
-  const quotation = await Quotation.create({ ...req.body, code, amount, rfqTitle, createdBy: req.user._id });
+  const quotation = await Quotation.create({ ...req.body, code, amount, rfqTitle, ...orgStamp(req) });
   await notify.record({
     userId: req.user?._id,
+    organization: req.user?.organization,
     actor: req.user?.name || quotation.vendor,
     action: 'submitted quotation',
     entityType: 'Quotation',
@@ -62,7 +64,7 @@ const create = asyncHandler(async (req, res) => {
 // POST /api/quotations/:id/shortlist
 const shortlist = asyncHandler(async (req, res) => {
   const quotation = await Quotation.findOneAndUpdate(
-    { code: req.params.id, createdBy: req.user._id },
+    orgFilter(req, { code: req.params.id }),
     { status: 'Shortlisted' },
     { new: true }
   );
@@ -77,7 +79,7 @@ const setStatus = asyncHandler(async (req, res) => {
     return res.status(422).json({ message: 'Invalid quotation status.' });
   }
   const quotation = await Quotation.findOneAndUpdate(
-    { code: req.params.id, createdBy: req.user._id },
+    orgFilter(req, { code: req.params.id }),
     { status: req.body.status },
     { new: true }
   );
@@ -88,7 +90,7 @@ const setStatus = asyncHandler(async (req, res) => {
 // POST /api/quotations/:id/award
 // Awards the quote, marks the RFQ Awarded, and drafts a Purchase Order from it.
 const award = asyncHandler(async (req, res) => {
-  const quotation = await Quotation.findOne({ code: req.params.id, createdBy: req.user._id });
+  const quotation = await Quotation.findOne(orgFilter(req, { code: req.params.id }));
   if (!quotation) return res.status(404).json({ message: 'Quotation not found.' });
 
   quotation.status = 'Awarded';
@@ -101,11 +103,11 @@ const award = asyncHandler(async (req, res) => {
   const poCode = await generateCode(PurchaseOrder, { prefix: 'PO', year: true, pad: 3 });
   const [, , po] = await Promise.all([
     Quotation.updateMany(
-      { rfqId: quotation.rfqId, _id: { $ne: quotation._id }, status: { $ne: 'Awarded' }, createdBy: req.user._id },
+      orgFilter(req, { rfqId: quotation.rfqId, _id: { $ne: quotation._id }, status: { $ne: 'Awarded' } }),
       { status: 'Rejected' }
     ),
     quotation.rfqId
-      ? RFQ.findOneAndUpdate({ code: quotation.rfqId, createdBy: req.user._id }, { status: 'Awarded' })
+      ? RFQ.findOneAndUpdate(orgFilter(req, { code: quotation.rfqId }), { status: 'Awarded' })
       : Promise.resolve(null),
     PurchaseOrder.create({
       code: poCode,
@@ -119,12 +121,13 @@ const award = asyncHandler(async (req, res) => {
       delivery: req.body.delivery,
       items: quotation.items,
       requestedBy: req.user?.name || '',
-      createdBy: req.user?._id,
+      ...orgStamp(req),
     }),
   ]);
 
   await notify.record({
     userId: req.user?._id,
+    organization: req.user?.organization,
     actor: req.user?.name || 'System',
     action: 'awarded',
     entityType: 'Quotation',

@@ -4,11 +4,12 @@ const Invoice = require('../models/Invoice');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { generateCode } = require('../utils/generateId');
 const notify = require('../services/notificationService');
+const { orgFilter, orgStamp } = require('../utils/scope');
 
 // Compute live orders/spend for a set of vendor codes from purchase orders.
-// Scoped to a single owner so accounts never see each other's PO spend.
-async function statsFor(vendorCodes, owner) {
-  const pos = await PurchaseOrder.find({ vendorId: { $in: vendorCodes }, createdBy: owner }).select('vendorId amount status').lean();
+// Scoped to one organization so workspaces never see each other's PO spend.
+async function statsFor(vendorCodes, org) {
+  const pos = await PurchaseOrder.find({ vendorId: { $in: vendorCodes }, organization: org }).select('vendorId amount status').lean();
   const map = {};
   vendorCodes.forEach((c) => (map[c] = { orders: 0, spend: 0 }));
   pos.forEach((po) => {
@@ -24,7 +25,7 @@ async function statsFor(vendorCodes, owner) {
 // GET /api/vendors
 const list = asyncHandler(async (req, res) => {
   const { q, status, category } = req.query;
-  const filter = { createdBy: req.user._id };
+  const filter = orgFilter(req);
   if (status && status !== 'All') filter.status = status;
   if (category && category !== 'All') filter.category = category;
   if (q) {
@@ -37,20 +38,20 @@ const list = asyncHandler(async (req, res) => {
   }
 
   const vendors = await Vendor.find(filter).sort({ createdAt: -1 });
-  const stats = await statsFor(vendors.map((v) => v.code), req.user._id);
+  const stats = await statsFor(vendors.map((v) => v.code), req.user.organization);
   const data = vendors.map((v) => ({ ...v.toJSON(), ...(stats[v.code] || { orders: 0, spend: 0 }) }));
   res.json({ data, count: data.length });
 });
 
 // GET /api/vendors/:id  (id = vendor code)
 const getOne = asyncHandler(async (req, res) => {
-  const vendor = await Vendor.findOne({ code: req.params.id, createdBy: req.user._id });
+  const vendor = await Vendor.findOne(orgFilter(req, { code: req.params.id }));
   if (!vendor) return res.status(404).json({ message: 'Vendor not found.' });
 
   const [pos, invoices, stats] = await Promise.all([
-    PurchaseOrder.find({ vendorId: vendor.code, createdBy: req.user._id }).sort({ created: -1 }),
-    Invoice.find({ vendorId: vendor.code, createdBy: req.user._id }).sort({ issued: -1 }),
-    statsFor([vendor.code], req.user._id),
+    PurchaseOrder.find(orgFilter(req, { vendorId: vendor.code })).sort({ created: -1 }),
+    Invoice.find(orgFilter(req, { vendorId: vendor.code })).sort({ issued: -1 }),
+    statsFor([vendor.code], req.user.organization),
   ]);
 
   res.json({
@@ -66,10 +67,11 @@ const create = asyncHandler(async (req, res) => {
   const vendor = await Vendor.create({
     ...req.body,
     code,
-    createdBy: req.user?._id,
+    ...orgStamp(req),
   });
   await notify.record({
     userId: req.user?._id,
+    organization: req.user?.organization,
     actor: req.user?.name || 'System',
     action: 'created',
     entityType: 'Vendor',
@@ -81,7 +83,7 @@ const create = asyncHandler(async (req, res) => {
 
 // PUT /api/vendors/:id
 const update = asyncHandler(async (req, res) => {
-  const vendor = await Vendor.findOne({ code: req.params.id, createdBy: req.user._id });
+  const vendor = await Vendor.findOne(orgFilter(req, { code: req.params.id }));
   if (!vendor) return res.status(404).json({ message: 'Vendor not found.' });
 
   const allowed = ['name', 'category', 'contact', 'email', 'phone', 'gstin', 'location', 'status', 'rating', 'notes'];
@@ -94,7 +96,7 @@ const update = asyncHandler(async (req, res) => {
 
 // DELETE /api/vendors/:id
 const remove = asyncHandler(async (req, res) => {
-  const vendor = await Vendor.findOneAndDelete({ code: req.params.id, createdBy: req.user._id });
+  const vendor = await Vendor.findOneAndDelete(orgFilter(req, { code: req.params.id }));
   if (!vendor) return res.status(404).json({ message: 'Vendor not found.' });
   res.json({ message: `Vendor ${vendor.code} deleted.` });
 });

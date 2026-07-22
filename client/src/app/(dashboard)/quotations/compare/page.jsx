@@ -16,7 +16,7 @@ function CompareInner() {
   const initial = params.get("rfq");
 
   // Build the list of RFQs that actually have quotations to compare.
-  const { data: quotesRes } = useFetch(() => quotationsApi.list(), []);
+  const { data: quotesRes } = useFetch(() => quotationsApi.list(), [], { key: "quotations" });
   const comparableRfqIds = [
     ...new Set((quotesRes?.data || []).map((q) => q.rfqId).filter(Boolean)),
   ];
@@ -30,7 +30,8 @@ function CompareInner() {
   // Fetch the structured comparison from the backend whenever the RFQ changes.
   const { data: cmpRes, loading, refetch } = useFetch(
     () => (rfqId ? quotationsApi.compare(rfqId) : Promise.resolve(null)),
-    [rfqId]
+    [rfqId],
+    { key: "quotations:compare" }
   );
   const cmp = cmpRes?.data;
   const vendors = cmp?.vendors || [];

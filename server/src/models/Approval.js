@@ -28,15 +28,16 @@ const approvalSchema = new mongoose.Schema(
     decidedAt: { type: Date },
     comment: { type: String, default: '' },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    // Owning workspace (team collaboration, Phase 1). Becomes the isolation
-    // boundary in Phase 2; `createdBy` stays as the authoring user.
-    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null, index: true },
+    // Owning workspace — the isolation boundary (team collaboration). Covered by
+    // the { organization, status } compound index below; `createdBy` stays as the
+    // authoring user.
+    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null },
   },
   baseOptions()
 );
 
-// Dashboard counts pending approvals by owner; list views filter by status too.
-// The compound also serves owner-only lookups via its leading-field prefix.
-approvalSchema.index({ createdBy: 1, status: 1 });
+// Dashboard counts pending approvals by organization; list views filter by
+// status too. The compound also serves org-only lookups via its prefix.
+approvalSchema.index({ organization: 1, status: 1 });
 
 module.exports = mongoose.model('Approval', approvalSchema);

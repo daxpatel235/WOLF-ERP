@@ -13,7 +13,7 @@ const TABS = ["All", "Draft", "Pending Approval", "Approved", "Sent", "Received"
 export default function PurchaseOrdersPage() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("All");
-  const { data, loading, error } = useFetch(() => purchaseOrdersApi.list(), []);
+  const { data, loading, error } = useFetch(() => purchaseOrdersApi.list(), [], { key: "purchase-orders" });
   const ALL = data?.data || [];
 
   const rows = useMemo(

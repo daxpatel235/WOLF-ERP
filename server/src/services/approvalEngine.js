@@ -21,13 +21,16 @@ function httpError(message, statusCode = 400) {
 
 // Open an approval task for an entity. Idempotent: if one is already pending
 // for the same entity, return it instead of creating a duplicate.
-async function openApproval({ refModel, refId, type, vendor = '—', amount = 0, requestedBy = '', priority = 'medium', userId = null }) {
-  const existing = await Approval.findOne({ refModel, refId, status: 'Pending', createdBy: userId });
+async function openApproval({ refModel, refId, type, vendor = '—', amount = 0, requestedBy = '', priority = 'medium', userId = null, organization = null }) {
+  // Idempotent within a workspace: a pending approval for the same entity (raised
+  // by any org member) counts as the existing one.
+  const existing = await Approval.findOne({ refModel, refId, status: 'Pending', organization });
   if (existing) return existing;
 
-  const approval = await Approval.create({ refModel, refId, type, vendor, amount, requestedBy, priority, createdBy: userId });
+  const approval = await Approval.create({ refModel, refId, type, vendor, amount, requestedBy, priority, createdBy: userId, organization });
   await notify.record({
     userId,
+    organization,
     actor: requestedBy || 'System',
     action: 'requested approval',
     entityType: refModel,
@@ -39,25 +42,25 @@ async function openApproval({ refModel, refId, type, vendor = '—', amount = 0,
 
 // Apply a decision: updates the approval AND flows the result back to the
 // underlying PO / Invoice / RFQ. This is the cross-module "connection".
-async function decide(approvalId, { decision, decidedBy = '', comment = '', userId = null }) {
+async function decide(approvalId, { decision, decidedBy = '', comment = '', userId = null, organization = null }) {
   if (!['Approved', 'Rejected'].includes(decision)) {
     throw httpError('Decision must be "Approved" or "Rejected".', 422);
   }
 
-  // Scope to the owner's account: you can only decide your own approvals.
-  const approval = userId
-    ? await Approval.findOne({ _id: approvalId, createdBy: userId })
+  // Scope to the caller's workspace: any org member can decide the org's approvals.
+  const approval = organization
+    ? await Approval.findOne({ _id: approvalId, organization })
     : await Approval.findById(approvalId);
   if (!approval) throw httpError('Approval not found.', 404);
   if (approval.status !== 'Pending') {
     throw httpError(`This item was already ${approval.status.toLowerCase()}.`, 409);
   }
 
-  // Flow the decision to the source entity (same owner).
+  // Flow the decision to the source entity (same workspace).
   const Model = MODELS[approval.refModel];
   let entity = null;
   if (Model) {
-    entity = await Model.findOne({ code: approval.refId, createdBy: approval.createdBy });
+    entity = await Model.findOne({ code: approval.refId, organization: approval.organization });
     const nextStatus = TRANSITIONS[approval.refModel]?.[decision];
     if (entity && nextStatus) {
       entity.status = nextStatus;
@@ -77,6 +80,7 @@ async function decide(approvalId, { decision, decidedBy = '', comment = '', user
 
   await notify.record({
     userId,
+    organization,
     actor: decidedBy || 'System',
     action: decision === 'Approved' ? 'approved' : 'rejected',
     entityType: approval.refModel,

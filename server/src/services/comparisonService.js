@@ -2,11 +2,12 @@ const Quotation = require('../models/Quotation');
 const RFQ = require('../models/RFQ');
 
 // Build a side-by-side comparison of all quotations for one RFQ.
-// Returns the data the /quotations/compare screen needs.
-async function compareRfq(rfqId, owner) {
+// Returns the data the /quotations/compare screen needs. Scoped to one
+// organization (the workspace), so a team shares the comparison.
+async function compareRfq(rfqId, organization) {
   const [rfq, quotations] = await Promise.all([
-    RFQ.findOne({ code: rfqId, createdBy: owner }),
-    Quotation.find({ rfqId, createdBy: owner }).sort({ amount: 1 }),
+    RFQ.findOne({ code: rfqId, organization }),
+    Quotation.find({ rfqId, organization }).sort({ amount: 1 }),
   ]);
 
   const live = quotations.filter((q) => q.status !== 'Rejected');

@@ -18,9 +18,9 @@ const kpiColor = {
 };
 
 export default function ReportsPage() {
-  const { data: summaryRes, loading } = useFetch(() => reportsApi.summary(), []);
-  const { data: catRes } = useFetch(() => reportsApi.spendByCategory(), []);
-  const { data: vendorRes } = useFetch(() => reportsApi.spendByVendor(), []);
+  const { data: summaryRes, loading } = useFetch(() => reportsApi.summary(), [], { key: "reports:summary" });
+  const { data: catRes } = useFetch(() => reportsApi.spendByCategory(), [], { key: "reports:by-category" });
+  const { data: vendorRes } = useFetch(() => reportsApi.spendByVendor(), [], { key: "reports:by-vendor" });
 
   const s = summaryRes?.data;
   const categories = catRes?.data || [];

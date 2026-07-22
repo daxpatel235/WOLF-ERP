@@ -1,10 +1,10 @@
-// Dormancy-based data reset — the free-tier storage guard.
+// Dormancy-based data reset — the free-tier storage guard, per organization.
 //
-// Rule: user login credentials live forever. If NOBODY has logged in for
-// `days` days, every other collection is wiped so the database stays lean and
-// the demo resets cleanly. Driven weekly by an external cron that hits
-// POST /api/admin/cleanup (works even while the backend is asleep, because the
-// cron request wakes it).
+// Rule: user logins and their workspaces live forever. For each organization, if
+// NO member has logged in for `days` days, that org's business data is wiped so
+// the database stays lean. Active orgs are never touched. Driven weekly by an
+// external cron that hits POST /api/admin/cleanup (works even while the backend
+// is asleep, because the cron request wakes it).
 
 const User = require('../models/User');
 const Vendor = require('../models/Vendor');
@@ -15,6 +15,9 @@ const Invoice = require('../models/Invoice');
 const Approval = require('../models/Approval');
 const ActivityLog = require('../models/ActivityLog');
 const KnowledgeChunk = require('../models/KnowledgeChunk');
+const Channel = require('../models/Channel');
+const Message = require('../models/Message');
+const Invitation = require('../models/Invitation');
 const logger = require('../utils/logger');
 
 // Every collection EXCEPT User. Listed explicitly (never derived from the
@@ -29,6 +32,9 @@ const PURGEABLE = {
   approvals: Approval,
   activityLogs: ActivityLog,
   knowledgeChunks: KnowledgeChunk,
+  channels: Channel,
+  messages: Message,
+  invitations: Invitation,
 };
 
 // Most recent login across all users, or null if there are no users at all.
@@ -37,27 +43,41 @@ async function lastActivityAt() {
   return u ? u.lastLoginAt : null;
 }
 
-// Wipes all non-User data when the app has been dormant for `days` days.
-// Returns a report; `wiped: false` means the app was still active and nothing
-// was deleted.
+// Wipes the business data of every organization whose members have all been idle
+// for `days` days. Returns a report; `wiped: false` means no org was dormant.
 async function runDormancyCleanup({ days = 30 } = {}) {
-  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  const last = await lastActivityAt();
+  const cutoffMs = Date.now() - days * 24 * 60 * 60 * 1000;
 
-  // No users yet, or someone logged in within the window → keep everything.
-  if (!last || last > cutoff) {
-    return { wiped: false, days, lastActivityAt: last, cutoff, deleted: {} };
+  // Compute the most-recent login per organization (an org is "active" if ANY of
+  // its members has signed in within the window).
+  const users = await User.find().select('organization lastLoginAt').lean();
+  const latestByOrg = new Map(); // orgKey -> { id, t }
+  for (const u of users) {
+    if (!u.organization) continue;
+    const key = String(u.organization);
+    const t = u.lastLoginAt ? new Date(u.lastLoginAt).getTime() : 0;
+    const cur = latestByOrg.get(key);
+    if (!cur || t > cur.t) latestByOrg.set(key, { id: u.organization, t });
   }
 
+  const dormant = [...latestByOrg.values()].filter((o) => o.t < cutoffMs);
+  const last = await lastActivityAt();
+
+  // Nothing dormant → keep everything.
+  if (!dormant.length) {
+    return { wiped: false, days, lastActivityAt: last, dormantOrgs: 0, deleted: {} };
+  }
+
+  const orgIds = dormant.map((o) => o.id);
   const deleted = {};
   for (const [name, Model] of Object.entries(PURGEABLE)) {
-    const { deletedCount } = await Model.deleteMany({});
+    const { deletedCount } = await Model.deleteMany({ organization: { $in: orgIds } });
     deleted[name] = deletedCount;
   }
   logger.info(
-    `Dormancy cleanup: app idle since ${last.toISOString()} (>${days}d) — wiped ${JSON.stringify(deleted)}`
+    `Dormancy cleanup: ${dormant.length} organization(s) idle >${days}d — wiped ${JSON.stringify(deleted)}`
   );
-  return { wiped: true, days, lastActivityAt: last, cutoff, deleted };
+  return { wiped: true, days, lastActivityAt: last, dormantOrgs: dormant.length, deleted };
 }
 
 module.exports = { runDormancyCleanup, lastActivityAt, PURGEABLE };

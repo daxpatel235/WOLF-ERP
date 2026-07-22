@@ -1,11 +1,11 @@
 /**
- * Backfill Organizations onto pre-team-collaboration data (Phase 1).
+ * Backfill Organizations onto pre-team-collaboration data.
  *
  * Before team collaboration, every record was scoped only by its owning user
  * (`createdBy`, or `userId`/`owner` on a couple of models). This script gives
  * every existing user their own Organization (workspace) and stamps all of that
- * user's records with `organization`, so Phase 2 can flip the isolation boundary
- * from the user to the org without any record going dark.
+ * user's records with `organization`, which is now the isolation boundary — so
+ * no record goes dark after the switch.
  *
  * Non-destructive & idempotent:
  *   - A user who already has an `organization` keeps it (no duplicate org).
@@ -52,22 +52,13 @@ const OWNED_MODELS = [
 // Records with no organization yet (field missing or null).
 const orgless = () => ({ $or: [{ organization: { $exists: false } }, { organization: null }] });
 
-async function run() {
-  const dryRun = process.argv.slice(2).includes('--dry-run');
-
-  // Connect DIRECTLY to the configured DB — never fall back to in-memory, or
-  // we'd "succeed" against a throwaway database and change nothing real.
-  try {
-    await mongoose.connect(env.MONGO_URI, { serverSelectionTimeoutMS: 8000 });
-    logger.info(`Connected: ${mongoose.connection.host}/${mongoose.connection.name}`);
-  } catch (e) {
-    logger.error(`Could not connect to MONGO_URI (${e.message}).`);
-    logger.error('Set MONGO_URI in server/.env to your Atlas string and try again.');
-    process.exit(1);
-  }
-
+/**
+ * Core migration. Operates on the CURRENT mongoose connection so it can be
+ * driven from tests as well as the CLI. Returns a summary report.
+ */
+async function migrateToOrganizations({ dryRun = false, log = logger } = {}) {
   const users = await User.find().select('name company organization').lean();
-  logger.info(`${dryRun ? '[DRY RUN] ' : ''}Migrating ${users.length} user(s) to organizations.`);
+  log.info(`${dryRun ? '[DRY RUN] ' : ''}Migrating ${users.length} user(s) to organizations.`);
 
   let orgsCreated = 0;
   let recordsStamped = 0;
@@ -78,7 +69,7 @@ async function run() {
     if (!orgId) {
       const name = (u.company && u.company.trim()) || `${u.name}'s Workspace`;
       if (dryRun) {
-        logger.info(`  [would create org] "${name}" owned by ${u.name} (${u._id})`);
+        log.info(`  [would create org] "${name}" owned by ${u.name} (${u._id})`);
       } else {
         const org = await Organization.create({ name, ownerId: u._id });
         orgId = org._id;
@@ -93,22 +84,46 @@ async function run() {
       const count = await Model.countDocuments(filter);
       if (!count) continue;
       if (!dryRun && orgId) await Model.updateMany(filter, { $set: { organization: orgId } });
-      logger.info(`    ${u.name}: ${name} ${count} ${dryRun ? 'would be stamped' : 'stamped'}`);
+      log.info(`    ${u.name}: ${name} ${count} ${dryRun ? 'would be stamped' : 'stamped'}`);
       recordsStamped += count;
     }
   }
 
-  logger.info(
+  log.info(
     `${dryRun ? '[DRY RUN] ' : ''}Done. ${orgsCreated} org(s) ${dryRun ? 'would be' : ''} created, ` +
       `${recordsStamped} record(s) ${dryRun ? 'would be' : 'were'} stamped.`
   );
-  if (dryRun) logger.info('Re-run without --dry-run to apply.');
+  if (dryRun) log.info('Re-run without --dry-run to apply.');
+
+  return { users: users.length, orgsCreated, recordsStamped, dryRun };
+}
+
+// CLI entry point: `npm run migrate-orgs [-- --dry-run]`
+async function runCli() {
+  const dryRun = process.argv.slice(2).includes('--dry-run');
+
+  // Connect DIRECTLY to the configured DB — never fall back to in-memory, or
+  // we'd "succeed" against a throwaway database and change nothing real.
+  try {
+    await mongoose.connect(env.MONGO_URI, { serverSelectionTimeoutMS: 8000 });
+    logger.info(`Connected: ${mongoose.connection.host}/${mongoose.connection.name}`);
+  } catch (e) {
+    logger.error(`Could not connect to MONGO_URI (${e.message}).`);
+    logger.error('Set MONGO_URI in server/.env to your Atlas string and try again.');
+    process.exit(1);
+  }
+
+  await migrateToOrganizations({ dryRun });
 
   await mongoose.disconnect();
   process.exit(0);
 }
 
-run().catch((err) => {
-  logger.error('migrate-orgs failed:', err);
-  process.exit(1);
-});
+if (require.main === module) {
+  runCli().catch((err) => {
+    logger.error('migrate-orgs failed:', err);
+    process.exit(1);
+  });
+}
+
+module.exports = { migrateToOrganizations, OWNED_MODELS };

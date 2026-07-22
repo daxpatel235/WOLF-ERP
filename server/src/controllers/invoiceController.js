@@ -5,6 +5,7 @@ const { generateCode } = require('../utils/generateId');
 const { sumItems } = require('../utils/schema');
 const { sendInvoiceMail } = require('../services/emailService');
 const notify = require('../services/notificationService');
+const { orgFilter, orgStamp } = require('../utils/scope');
 
 // Keep status in sync with how much has been paid.
 function reconcileStatus(invoice) {
@@ -21,7 +22,7 @@ function reconcileStatus(invoice) {
 // GET /api/invoices
 const list = asyncHandler(async (req, res) => {
   const { q, status, vendorId, poId } = req.query;
-  const filter = { createdBy: req.user._id };
+  const filter = orgFilter(req);
   if (status && status !== 'All') filter.status = status;
   if (vendorId) filter.vendorId = vendorId;
   if (poId) filter.poId = poId;
@@ -33,7 +34,7 @@ const list = asyncHandler(async (req, res) => {
 
 // GET /api/invoices/:id
 const getOne = asyncHandler(async (req, res) => {
-  const invoice = await Invoice.findOne({ code: req.params.id, createdBy: req.user._id });
+  const invoice = await Invoice.findOne(orgFilter(req, { code: req.params.id }));
   if (!invoice) return res.status(404).json({ message: 'Invoice not found.' });
   res.json({ data: invoice.toJSON() });
 });
@@ -45,7 +46,7 @@ const create = asyncHandler(async (req, res) => {
 
   // If linked to a PO and fields are missing, pull them from the PO.
   if (body.poId) {
-    const po = await PurchaseOrder.findOne({ code: body.poId, createdBy: req.user._id });
+    const po = await PurchaseOrder.findOne(orgFilter(req, { code: body.poId }));
     if (po) {
       body.vendor = body.vendor || po.vendor;
       body.vendorId = body.vendorId || po.vendorId;
@@ -56,9 +57,10 @@ const create = asyncHandler(async (req, res) => {
   const items = body.items || [];
   const amount = body.amount != null ? body.amount : sumItems(items);
 
-  const invoice = await Invoice.create({ ...body, code, amount, createdBy: req.user?._id });
+  const invoice = await Invoice.create({ ...body, code, amount, ...orgStamp(req) });
   await notify.record({
     userId: req.user?._id,
+    organization: req.user?.organization,
     actor: req.user?.name || 'System',
     action: 'created',
     entityType: 'Invoice',
@@ -70,7 +72,7 @@ const create = asyncHandler(async (req, res) => {
 
 // POST /api/invoices/:id/status { status, amountPaid }
 const setStatus = asyncHandler(async (req, res) => {
-  const invoice = await Invoice.findOne({ code: req.params.id, createdBy: req.user._id });
+  const invoice = await Invoice.findOne(orgFilter(req, { code: req.params.id }));
   if (!invoice) return res.status(404).json({ message: 'Invoice not found.' });
 
   if (req.body.amountPaid !== undefined) invoice.amountPaid = Number(req.body.amountPaid) || 0;
@@ -80,6 +82,7 @@ const setStatus = asyncHandler(async (req, res) => {
 
   await notify.record({
     userId: req.user?._id,
+    organization: req.user?.organization,
     actor: req.user?.name || 'System',
     action: 'updated status',
     entityType: 'Invoice',
@@ -91,7 +94,7 @@ const setStatus = asyncHandler(async (req, res) => {
 
 // POST /api/invoices/:id/pay  (record a full or partial payment)
 const recordPayment = asyncHandler(async (req, res) => {
-  const invoice = await Invoice.findOne({ code: req.params.id, createdBy: req.user._id });
+  const invoice = await Invoice.findOne(orgFilter(req, { code: req.params.id }));
   if (!invoice) return res.status(404).json({ message: 'Invoice not found.' });
 
   const amount = Number(req.body.amount);
@@ -103,7 +106,7 @@ const recordPayment = asyncHandler(async (req, res) => {
 
 // POST /api/invoices/:id/send  (email + mark Sent)
 const send = asyncHandler(async (req, res) => {
-  const invoice = await Invoice.findOne({ code: req.params.id, createdBy: req.user._id });
+  const invoice = await Invoice.findOne(orgFilter(req, { code: req.params.id }));
   if (!invoice) return res.status(404).json({ message: 'Invoice not found.' });
 
   const to = req.body.to || req.body.email;
@@ -113,6 +116,7 @@ const send = asyncHandler(async (req, res) => {
 
   await notify.record({
     userId: req.user?._id,
+    organization: req.user?.organization,
     actor: req.user?.name || 'System',
     action: 'sent',
     entityType: 'Invoice',

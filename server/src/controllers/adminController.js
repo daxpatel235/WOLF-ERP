@@ -27,8 +27,8 @@ const cleanup = asyncHandler(async (req, res) => {
   const result = await runDormancyCleanup({ days: env.CLEANUP_INACTIVE_DAYS });
   res.json({
     message: result.wiped
-      ? `App dormant since ${result.lastActivityAt.toISOString()} — all data wiped, logins kept.`
-      : 'App still active — nothing deleted.',
+      ? `${result.dormantOrgs} dormant workspace(s) wiped, logins kept.`
+      : 'All workspaces still active — nothing deleted.',
     ...result,
   });
 });

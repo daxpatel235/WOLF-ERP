@@ -13,7 +13,7 @@ const TABS = ["All", "Received", "Shortlisted", "Awarded", "Rejected"];
 export default function QuotationsPage() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("All");
-  const { data, loading, error } = useFetch(() => quotationsApi.list(), []);
+  const { data, loading, error } = useFetch(() => quotationsApi.list(), [], { key: "quotations" });
   const ALL = data?.data || [];
 
   const rows = useMemo(

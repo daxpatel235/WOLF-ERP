@@ -18,8 +18,11 @@ import {
   ChevronDown,
   LogOut,
   User,
+  Building2,
+  MessagesSquare,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useFetch } from "@/hooks/useFetch";
 import { approvalsApi } from "@/lib/api";
 import { initialsOf } from "@/lib/utils";
 import GlobalSearch from "@/components/shared/GlobalSearch";
@@ -38,10 +41,26 @@ const navigation = [
   { name: "Reports", href: "/reports", icon: BarChart3 },
 ];
 
+// The shared-workspace surface: members, permissions, settings and team chat.
+// Chat lives under /organization, so each entry says when it owns the route.
+const workspaceNavigation = [
+  {
+    name: "Organization",
+    href: "/organization",
+    icon: Building2,
+    match: (p) => p.startsWith("/organization") && !p.startsWith("/organization/chat"),
+  },
+  {
+    name: "Team Chat",
+    href: "/organization/chat",
+    icon: MessagesSquare,
+    match: (p) => p.startsWith("/organization/chat"),
+  },
+];
+
 export default function DashboardLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [pendingCount, setPendingCount] = useState(0);
   const { user, loading, logout, loggingOut } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -54,13 +73,16 @@ export default function DashboardLayout({ children }) {
   }, [loading, user, router, loggingOut]);
 
   // ---- Keep the Approvals badge in sync with the backend ----
-  useEffect(() => {
-    if (!user) return;
-    approvalsApi
-      .count()
-      .then((r) => setPendingCount(r.pending || 0))
-      .catch(() => {});
-  }, [user, pathname]);
+  // Keyed on the pathname so the badge still refreshes as you move around (e.g.
+  // right after approving something), but served from the shared cache — so a
+  // burst of navigation costs no extra requests, and the count never flickers
+  // back to 0 while a refresh is in flight.
+  const { data: countRes } = useFetch(
+    () => (user ? approvalsApi.count() : Promise.resolve(null)),
+    [user?.id, pathname],
+    { key: "approvals:count", keyDeps: [user?.id] }
+  );
+  const pendingCount = countRes?.pending || 0;
 
   // ---- Logout handler ----
   // logout() (AuthContext) clears the session and routes to the landing page.
@@ -93,12 +115,12 @@ export default function DashboardLayout({ children }) {
     <div className="min-h-screen bg-[#fffdf7]">
       {/* ============ SIDEBAR ============ */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 text-slate-100 transform transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-slate-900 text-slate-100 transform transition-transform duration-300 lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between h-20 px-6 border-b border-slate-800">
+        <div className="flex shrink-0 items-center justify-between h-20 px-6 border-b border-slate-800">
           <Link href="/dashboard" className="flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/wolf-icon.png" alt="Wolf ERP" className="w-10 h-10 rounded-xl object-contain" />
@@ -115,8 +137,8 @@ export default function DashboardLayout({ children }) {
           </button>
         </div>
 
-        {/* Nav links */}
-        <nav className="px-4 py-6 space-y-1">
+        {/* Nav links (scrolls when the workspace section makes it tall) */}
+        <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1">
           <p className="px-3 mb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             Menu
           </p>
@@ -153,10 +175,36 @@ export default function DashboardLayout({ children }) {
               </Link>
             );
           })}
+
+          <p className="px-3 pt-5 pb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            Workspace
+          </p>
+          {workspaceNavigation.map((item) => {
+            const Icon = item.icon;
+            const active = item.match(pathname);
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group ${
+                  active
+                    ? "bg-blue-500/10 text-blue-400"
+                    : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                }`}
+              >
+                <Icon
+                  size={18}
+                  className={active ? "text-blue-400" : "text-slate-400 group-hover:text-white"}
+                />
+                {item.name}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Bottom tip card */}
-        <div className="absolute bottom-6 left-4 right-4">
+        <div className="shrink-0 m-4">
           <div className="bg-gradient-to-br from-blue-500/10 to-blue-700/5 border border-blue-500/20 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse" />

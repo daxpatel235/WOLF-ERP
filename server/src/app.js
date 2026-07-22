@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const path = require('path');
 const mongoose = require('mongoose');
 
@@ -15,11 +16,17 @@ const app = express();
 // Security headers. crossOriginResourcePolicy relaxed so the separate frontend
 // origin can still load /uploads assets.
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(compression()); // gzip JSON/API responses and static /uploads — cuts payload size over the wire
 app.use(cors({ origin: env.CLIENT_URL === '*' ? true : [env.CLIENT_URL, 'http://localhost:3000'], credentials: true }));
 app.use(express.json({ limit: '10mb' })); // 10mb headroom for base64 images sent to the AI extractor
 app.use(express.urlencoded({ extended: true }));
 app.use(requestTimeout()); // backstop so a stuck handler can't hang the client forever
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+// In the packaged desktop app the install dir is read-only, so serve uploads
+// from the per-user writable data dir (WOLF_DATA_DIR) when it is set.
+const UPLOADS_DIR = process.env.WOLF_DATA_DIR
+  ? path.join(process.env.WOLF_DATA_DIR, 'uploads')
+  : path.join(__dirname, '..', 'uploads');
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // Simple request logger (dev only).
 if (!env.isProd) {
@@ -50,6 +57,9 @@ app.get('/api/health', (_req, res) => {
 
 // ---- Feature routes ----
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/team', require('./routes/teamRoutes'));
+app.use('/api/organization', require('./routes/organizationRoutes'));
+app.use('/api/chat', require('./routes/chatRoutes'));
 app.use('/api/vendors', require('./routes/vendorRoutes'));
 app.use('/api/rfqs', require('./routes/rfqRoutes'));
 app.use('/api/quotations', require('./routes/quotationRoutes'));

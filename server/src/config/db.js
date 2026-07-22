@@ -9,8 +9,12 @@ mongoose.set('strictQuery', true);
 // On-disk location for the local fallback database (used only when no real
 // MONGO_URI is reachable). Keeping a fixed dbPath turns the dev fallback from a
 // throwaway in-memory store into a PERSISTENT one: data survives restarts.
+// In the packaged desktop app the install dir is read-only, so WOLF_DATA_DIR
+// points this at a per-user writable folder (e.g. %APPDATA%/WolfERP).
 // Gitignored — never committed.
-const LOCAL_DB_PATH = path.join(__dirname, '..', '..', '.localdb');
+const LOCAL_DB_PATH = process.env.WOLF_DATA_DIR
+  ? path.join(process.env.WOLF_DATA_DIR, 'localdb')
+  : path.join(__dirname, '..', '..', '.localdb');
 
 // Held so graceful shutdown can stop the embedded mongod cleanly (avoids an
 // unclean-shutdown lock on the persistent data directory).
@@ -73,7 +77,11 @@ function stopHeartbeat() {
 // the package is installed. Demo data is seeded ONLY when the store is empty, so
 // a restart never wipes what you've added.
 async function tryLocalDb() {
-  if (env.isProd || process.env.USE_MEMORY_DB === 'false') return null;
+  // The packaged desktop app runs with NODE_ENV=production but still needs the
+  // embedded engine (it ships its own bundled mongod), so allow it in prod when
+  // WOLF_DESKTOP=1. Otherwise keep the original "dev fallback only" behaviour.
+  const desktop = process.env.WOLF_DESKTOP === '1';
+  if ((env.isProd && !desktop) || process.env.USE_MEMORY_DB === 'false') return null;
 
   let MongoMemoryServer;
   try {
@@ -126,6 +134,17 @@ async function closeLocalDb() {
 // Connect to MongoDB. Prefer the configured MONGO_URI; fall back to in-memory.
 const connectDB = async () => {
   attachConnectionListeners();
+
+  // Desktop build with no user-supplied MONGO_URI: there is no external Mongo to
+  // reach, so go straight to the bundled embedded engine instead of wasting the
+  // 6s server-selection timeout failing to connect to 127.0.0.1:27017 first.
+  if (process.env.WOLF_DESKTOP === '1' && !process.env.MONGO_URI) {
+    const fallback = await tryLocalDb();
+    if (fallback) return fallback;
+    logger.error('Embedded database failed to start — the desktop app cannot run without it.');
+    process.exit(1);
+  }
+
   try {
     const conn = await mongoose.connect(env.MONGO_URI, CONNECT_OPTIONS);
     logger.info(`MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);

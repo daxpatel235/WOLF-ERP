@@ -21,7 +21,7 @@ const hrefFor = (a) => {
 };
 
 export default function ApprovalsPage() {
-  const { data, loading, error, refetch } = useFetch(() => approvalsApi.list(), []);
+  const { data, loading, error, refetch } = useFetch(() => approvalsApi.list(), [], { key: "approvals" });
   const [busyId, setBusyId] = useState(null);
 
   const pending = data?.pending || [];

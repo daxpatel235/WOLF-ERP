@@ -7,6 +7,7 @@ const notify = require('../services/notificationService');
 const { openApproval } = require('../services/approvalEngine');
 const { sendRFQInvite } = require('../services/emailService');
 const logger = require('../utils/logger');
+const { orgFilter, orgStamp } = require('../utils/scope');
 
 // Fire RFQ invite emails in the background. Emails are best-effort (sendMail
 // never throws), so we don't await them — SMTP latency must never hold up the
@@ -20,9 +21,9 @@ function sendInvitesInBackground(vendors, rfq) {
 }
 
 // Attach the live "received" count (quotations) to an RFQ JSON object.
-async function withCounts(rfqDocs, owner) {
+async function withCounts(rfqDocs, org) {
   const codes = rfqDocs.map((r) => r.code);
-  const quotes = await Quotation.find({ rfqId: { $in: codes }, createdBy: owner }).select('rfqId').lean();
+  const quotes = await Quotation.find({ rfqId: { $in: codes }, organization: org }).select('rfqId').lean();
   const received = {};
   quotes.forEach((q) => (received[q.rfqId] = (received[q.rfqId] || 0) + 1));
   return rfqDocs.map((r) => ({
@@ -35,23 +36,23 @@ async function withCounts(rfqDocs, owner) {
 // GET /api/rfqs
 const list = asyncHandler(async (req, res) => {
   const { q, status, category } = req.query;
-  const filter = { createdBy: req.user._id };
+  const filter = orgFilter(req);
   if (status && status !== 'All') filter.status = status;
   if (category && category !== 'All') filter.category = category;
   if (q) filter.$or = [{ title: new RegExp(q, 'i') }, { code: new RegExp(q, 'i') }];
 
   const rfqs = await RFQ.find(filter).sort({ created: -1 });
-  const data = await withCounts(rfqs, req.user._id);
+  const data = await withCounts(rfqs, req.user.organization);
   res.json({ data, count: data.length });
 });
 
 // GET /api/rfqs/:id  (includes its quotations)
 const getOne = asyncHandler(async (req, res) => {
-  const rfq = await RFQ.findOne({ code: req.params.id, createdBy: req.user._id });
+  const rfq = await RFQ.findOne(orgFilter(req, { code: req.params.id }));
   if (!rfq) return res.status(404).json({ message: 'RFQ not found.' });
 
-  const quotations = await Quotation.find({ rfqId: rfq.code, createdBy: req.user._id }).sort({ amount: 1 });
-  const [data] = await withCounts([rfq], req.user._id);
+  const quotations = await Quotation.find(orgFilter(req, { rfqId: rfq.code })).sort({ amount: 1 });
+  const [data] = await withCounts([rfq], req.user.organization);
   res.json({ data, quotations: quotations.map((q) => q.toJSON()) });
 });
 
@@ -68,21 +69,21 @@ const create = asyncHandler(async (req, res) => {
     ...fields,
     code,
     status: publishNow ? 'Published' : fields.status || 'Draft',
-    createdBy: req.user?._id,
+    ...orgStamp(req),
   });
 
   let invitedCount = 0;
   if (publishNow) {
-    const vendors = await Vendor.find({
-      code: { $in: rfq.invitedVendors || [] },
-      createdBy: req.user._id,
-    }).select('email');
+    const vendors = await Vendor.find(
+      orgFilter(req, { code: { $in: rfq.invitedVendors || [] } })
+    ).select('email');
     invitedCount = vendors.length;
     sendInvitesInBackground(vendors, rfq);
   }
 
   await notify.record({
     userId: req.user?._id,
+    organization: req.user?.organization,
     actor: req.user?.name || 'System',
     action: publishNow ? 'published' : 'created',
     entityType: 'RFQ',
@@ -99,20 +100,20 @@ const create = asyncHandler(async (req, res) => {
 
 // PUT /api/rfqs/:id
 const update = asyncHandler(async (req, res) => {
-  const rfq = await RFQ.findOne({ code: req.params.id, createdBy: req.user._id });
+  const rfq = await RFQ.findOne(orgFilter(req, { code: req.params.id }));
   if (!rfq) return res.status(404).json({ message: 'RFQ not found.' });
   const allowed = ['title', 'category', 'status', 'due', 'invitedVendors', 'items', 'notes'];
   allowed.forEach((f) => {
     if (req.body[f] !== undefined) rfq[f] = req.body[f];
   });
   await rfq.save();
-  const [data] = await withCounts([rfq], req.user._id);
+  const [data] = await withCounts([rfq], req.user.organization);
   res.json({ data });
 });
 
 // POST /api/rfqs/:id/publish  → status Published + email invited vendors
 const publish = asyncHandler(async (req, res) => {
-  const rfq = await RFQ.findOne({ code: req.params.id, createdBy: req.user._id });
+  const rfq = await RFQ.findOne(orgFilter(req, { code: req.params.id }));
   if (!rfq) return res.status(404).json({ message: 'RFQ not found.' });
 
   rfq.status = 'Published';
@@ -120,24 +121,25 @@ const publish = asyncHandler(async (req, res) => {
 
   // Best-effort invitations, sent in the background so SMTP latency never holds
   // up the response (see sendInvitesInBackground).
-  const vendors = await Vendor.find({ code: { $in: rfq.invitedVendors || [] }, createdBy: req.user._id }).select('email');
+  const vendors = await Vendor.find(orgFilter(req, { code: { $in: rfq.invitedVendors || [] } })).select('email');
   sendInvitesInBackground(vendors, rfq);
 
   await notify.record({
     userId: req.user?._id,
+    organization: req.user?.organization,
     actor: req.user?.name || 'System',
     action: 'published',
     entityType: 'RFQ',
     entityId: rfq.code,
     message: `RFQ ${rfq.code} published to ${vendors.length} vendor(s)`,
   });
-  const [data] = await withCounts([rfq], req.user._id);
+  const [data] = await withCounts([rfq], req.user.organization);
   res.json({ data });
 });
 
 // POST /api/rfqs/:id/submit  → open an approval task
 const submitForApproval = asyncHandler(async (req, res) => {
-  const rfq = await RFQ.findOne({ code: req.params.id, createdBy: req.user._id });
+  const rfq = await RFQ.findOne(orgFilter(req, { code: req.params.id }));
   if (!rfq) return res.status(404).json({ message: 'RFQ not found.' });
 
   const approval = await openApproval({
@@ -147,6 +149,7 @@ const submitForApproval = asyncHandler(async (req, res) => {
     requestedBy: req.user?.name || '',
     priority: req.body.priority || 'medium',
     userId: req.user?._id,
+    organization: req.user?.organization,
   });
   res.status(201).json({ data: approval.toJSON() });
 });

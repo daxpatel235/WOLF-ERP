@@ -19,15 +19,16 @@ const invoiceSchema = new mongoose.Schema(
     items: { type: [lineItemFields], default: [] },
     notes: { type: String, default: '' },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    // Owning workspace (team collaboration, Phase 1). Becomes the isolation
-    // boundary in Phase 2; `createdBy` stays as the authoring user.
-    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null, index: true },
+    // Owning workspace — the isolation boundary (team collaboration). Covered by
+    // the { organization, status } compound index below; `createdBy` stays as the
+    // authoring user.
+    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null },
   },
   baseOptions()
 );
 
-// Dashboard outstanding/overdue rollups scope by owner and filter on status.
-// The compound also serves owner-only lookups via its leading-field prefix.
-invoiceSchema.index({ createdBy: 1, status: 1 });
+// Dashboard outstanding/overdue rollups scope by organization and filter on
+// status. The compound also serves org-only lookups via its leading-field prefix.
+invoiceSchema.index({ organization: 1, status: 1 });
 
 module.exports = mongoose.model('Invoice', invoiceSchema);

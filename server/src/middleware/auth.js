@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 const User = require('../models/User');
+const { ensureOrganizationForUser } = require('../services/organizationService');
 
 // Verify the JWT from the Authorization header and attach the user to req.
 async function protect(req, res, next) {
@@ -26,6 +27,11 @@ async function protect(req, res, next) {
     if (user.status && user.status !== 'Active') {
       return res.status(403).json({ message: 'Your account is not active. Contact an administrator.' });
     }
+
+    // Team collaboration (Phase 2): the organization is the isolation boundary.
+    // Guarantee it's set before any handler scopes a query by it, healing legacy
+    // accounts that predate the org migration.
+    if (!user.organization) await ensureOrganizationForUser(user);
 
     req.user = user;
     next();

@@ -15,14 +15,14 @@ const NON_OUTSTANDING = ['Paid', 'Cancelled', 'Draft'];
 // never streams whole collections into Node just to total them up. Combined
 // with the { createdBy, status } indexes, each branch is an index-backed scan.
 const summary = asyncHandler(async (req, res) => {
-  const owner = req.user._id;
+  const owner = req.user.organization;
   const [vendors, activeVendors, rfqs, openRfqs, poAgg, invAgg, pendingApprovals] = await Promise.all([
-    Vendor.countDocuments({ createdBy: owner }),
-    Vendor.countDocuments({ createdBy: owner, status: 'Active' }),
-    RFQ.countDocuments({ createdBy: owner }),
-    RFQ.countDocuments({ createdBy: owner, status: 'Published' }),
+    Vendor.countDocuments({ organization: owner }),
+    Vendor.countDocuments({ organization: owner, status: 'Active' }),
+    RFQ.countDocuments({ organization: owner }),
+    RFQ.countDocuments({ organization: owner, status: 'Published' }),
     PurchaseOrder.aggregate([
-      { $match: { createdBy: owner } },
+      { $match: { organization: owner } },
       {
         $group: {
           _id: null,
@@ -34,7 +34,7 @@ const summary = asyncHandler(async (req, res) => {
       },
     ]),
     Invoice.aggregate([
-      { $match: { createdBy: owner } },
+      { $match: { organization: owner } },
       {
         $group: {
           _id: null,
@@ -52,7 +52,7 @@ const summary = asyncHandler(async (req, res) => {
         },
       },
     ]),
-    Approval.countDocuments({ createdBy: owner, status: 'Pending' }),
+    Approval.countDocuments({ organization: owner, status: 'Pending' }),
   ]);
 
   const po = poAgg[0] || { total: 0, totalSpend: 0 };
@@ -71,11 +71,11 @@ const summary = asyncHandler(async (req, res) => {
 
 // GET /api/reports/spend-by-category
 const spendByCategory = asyncHandler(async (req, res) => {
-  const owner = req.user._id;
+  const owner = req.user.organization;
   // Map vendorId -> category, then bucket PO spend by it.
   const [vendors, pos] = await Promise.all([
-    Vendor.find({ createdBy: owner }).select('code category').lean(),
-    PurchaseOrder.find({ createdBy: owner, status: { $in: SPENDABLE } }).select('vendorId amount').lean(),
+    Vendor.find({ organization: owner }).select('code category').lean(),
+    PurchaseOrder.find({ organization: owner, status: { $in: SPENDABLE } }).select('vendorId amount').lean(),
   ]);
   const catOf = Object.fromEntries(vendors.map((v) => [v.code, v.category || 'Other']));
   const buckets = {};
@@ -91,7 +91,7 @@ const spendByCategory = asyncHandler(async (req, res) => {
 
 // GET /api/reports/spend-by-vendor
 const spendByVendor = asyncHandler(async (req, res) => {
-  const pos = await PurchaseOrder.find({ createdBy: req.user._id, status: { $in: SPENDABLE } })
+  const pos = await PurchaseOrder.find({ organization: req.user.organization, status: { $in: SPENDABLE } })
     .select('vendor vendorId amount')
     .lean();
   const buckets = {};
@@ -108,7 +108,7 @@ const spendByVendor = asyncHandler(async (req, res) => {
 // GET /api/reports/activity
 const activity = asyncHandler(async (req, res) => {
   // Scope the feed to the signed-in account so it only shows their own events.
-  const items = await notify.recent(Number(req.query.limit) || 12, req.user?._id);
+  const items = await notify.recent(Number(req.query.limit) || 12, req.user?.organization);
   res.json({ data: items.map((i) => i.toJSON()) });
 });
 

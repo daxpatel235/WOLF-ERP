@@ -15,15 +15,16 @@ const vendorSchema = new mongoose.Schema(
     rating: { type: Number, min: 0, max: 5, default: 0 },
     notes: { type: String, default: '' },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    // Owning workspace (team collaboration, Phase 1). Becomes the isolation
-    // boundary in Phase 2; `createdBy` stays as the authoring user.
-    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null, index: true },
+    // Owning workspace — the isolation boundary (team collaboration). Covered by
+    // the { organization, status } compound index below; `createdBy` stays as the
+    // authoring user.
+    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null },
   },
   baseOptions()
 );
 
-// Dashboard/listing queries always scope by owner, often plus status. The
-// compound also serves owner-only lookups via its leading-field prefix.
-vendorSchema.index({ createdBy: 1, status: 1 });
+// Dashboard/listing queries always scope by organization, often plus status.
+// The compound also serves org-only lookups via its leading-field prefix.
+vendorSchema.index({ organization: 1, status: 1 });
 
 module.exports = mongoose.model('Vendor', vendorSchema);

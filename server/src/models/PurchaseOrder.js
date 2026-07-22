@@ -22,14 +22,15 @@ const purchaseOrderSchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     requestedBy: { type: String, default: '' }, // display name for approvals
     approvedBy: { type: String, default: '' },
-    // Owning workspace (team collaboration, Phase 1). Becomes the isolation
-    // boundary in Phase 2; `createdBy` stays as the authoring user.
-    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null, index: true },
+    // Owning workspace — the isolation boundary (team collaboration). Covered by
+    // the { organization, status } compound index below; `createdBy` stays as the
+    // authoring user.
+    organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null },
   },
   baseOptions()
 );
 
-// Dashboard spend rollups scope by owner and filter on status.
-purchaseOrderSchema.index({ createdBy: 1, status: 1 });
+// Dashboard spend rollups scope by organization and filter on status.
+purchaseOrderSchema.index({ organization: 1, status: 1 });
 
 module.exports = mongoose.model('PurchaseOrder', purchaseOrderSchema);

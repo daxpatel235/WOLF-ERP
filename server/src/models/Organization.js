@@ -40,5 +40,24 @@ const organizationSchema = new mongoose.Schema(
   baseOptions()
 );
 
+// Every capability name the app knows about.
+const PERMISSION_KEYS = Object.keys(DEFAULT_MEMBER_PERMISSIONS);
+
+// A permission map with everything granted — what the owner effectively holds.
+const allPermissions = () => Object.fromEntries(PERMISSION_KEYS.map((k) => [k, true]));
+
+// Keep only known capability names, coercing values to booleans, so a client can
+// never inject arbitrary keys into a member's permission map.
+function sanitizePermissions(input = {}) {
+  const out = {};
+  for (const key of PERMISSION_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(input, key)) out[key] = input[key] === true;
+  }
+  return out;
+}
+
 module.exports = mongoose.model('Organization', organizationSchema);
 module.exports.DEFAULT_MEMBER_PERMISSIONS = DEFAULT_MEMBER_PERMISSIONS;
+module.exports.PERMISSION_KEYS = PERMISSION_KEYS;
+module.exports.allPermissions = allPermissions;
+module.exports.sanitizePermissions = sanitizePermissions;

@@ -5,11 +5,12 @@ const { generateCode } = require('../utils/generateId');
 const { sumItems } = require('../utils/schema');
 const { openApproval } = require('../services/approvalEngine');
 const notify = require('../services/notificationService');
+const { orgFilter, orgStamp } = require('../utils/scope');
 
 // GET /api/purchase-orders
 const list = asyncHandler(async (req, res) => {
   const { q, status, vendorId, priority } = req.query;
-  const filter = { createdBy: req.user._id };
+  const filter = orgFilter(req);
   if (status && status !== 'All') filter.status = status;
   if (vendorId) filter.vendorId = vendorId;
   if (priority) filter.priority = priority;
@@ -21,9 +22,9 @@ const list = asyncHandler(async (req, res) => {
 
 // GET /api/purchase-orders/:id
 const getOne = asyncHandler(async (req, res) => {
-  const po = await PurchaseOrder.findOne({ code: req.params.id, createdBy: req.user._id });
+  const po = await PurchaseOrder.findOne(orgFilter(req, { code: req.params.id }));
   if (!po) return res.status(404).json({ message: 'Purchase order not found.' });
-  const invoices = await Invoice.find({ poId: po.code, createdBy: req.user._id }).sort({ issued: -1 });
+  const invoices = await Invoice.find(orgFilter(req, { poId: po.code })).sort({ issued: -1 });
   res.json({ data: po.toJSON(), invoices: invoices.map((i) => i.toJSON()) });
 });
 
@@ -38,7 +39,7 @@ const create = asyncHandler(async (req, res) => {
     code,
     amount,
     requestedBy: req.body.requestedBy || req.user?.name || '',
-    createdBy: req.user?._id,
+    ...orgStamp(req),
   });
 
   // If created already in "Pending Approval", open an approval task.
@@ -52,11 +53,13 @@ const create = asyncHandler(async (req, res) => {
       requestedBy: po.requestedBy,
       priority: po.priority,
       userId: req.user?._id,
+      organization: req.user?.organization,
     });
   }
 
   await notify.record({
     userId: req.user?._id,
+    organization: req.user?.organization,
     actor: req.user?.name || 'System',
     action: 'created',
     entityType: 'PurchaseOrder',
@@ -68,7 +71,7 @@ const create = asyncHandler(async (req, res) => {
 
 // PUT /api/purchase-orders/:id
 const update = asyncHandler(async (req, res) => {
-  const po = await PurchaseOrder.findOne({ code: req.params.id, createdBy: req.user._id });
+  const po = await PurchaseOrder.findOne(orgFilter(req, { code: req.params.id }));
   if (!po) return res.status(404).json({ message: 'Purchase order not found.' });
 
   const allowed = ['vendor', 'vendorId', 'priority', 'delivery', 'items', 'notes', 'amount'];
@@ -82,7 +85,7 @@ const update = asyncHandler(async (req, res) => {
 
 // POST /api/purchase-orders/:id/submit → Pending Approval + approval task
 const submit = asyncHandler(async (req, res) => {
-  const po = await PurchaseOrder.findOne({ code: req.params.id, createdBy: req.user._id });
+  const po = await PurchaseOrder.findOne(orgFilter(req, { code: req.params.id }));
   if (!po) return res.status(404).json({ message: 'Purchase order not found.' });
 
   po.status = 'Pending Approval';
@@ -96,6 +99,7 @@ const submit = asyncHandler(async (req, res) => {
     requestedBy: po.requestedBy || req.user?.name || '',
     priority: po.priority,
     userId: req.user?._id,
+    organization: req.user?.organization,
   });
   res.json({ data: po.toJSON() });
 });
@@ -106,7 +110,7 @@ const setStatus = asyncHandler(async (req, res) => {
   const valid = ['Draft', 'Pending Approval', 'Approved', 'Sent', 'Received', 'Cancelled', 'Rejected'];
   if (!valid.includes(status)) return res.status(422).json({ message: 'Invalid status.' });
 
-  const po = await PurchaseOrder.findOne({ code: req.params.id, createdBy: req.user._id });
+  const po = await PurchaseOrder.findOne(orgFilter(req, { code: req.params.id }));
   if (!po) return res.status(404).json({ message: 'Purchase order not found.' });
   po.status = status;
   await po.save();
@@ -121,10 +125,12 @@ const setStatus = asyncHandler(async (req, res) => {
       requestedBy: po.requestedBy || req.user?.name || '',
       priority: po.priority,
       userId: req.user?._id,
+      organization: req.user?.organization,
     });
   }
   await notify.record({
     userId: req.user?._id,
+    organization: req.user?.organization,
     actor: req.user?.name || 'System',
     action: 'updated status',
     entityType: 'PurchaseOrder',

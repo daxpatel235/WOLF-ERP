@@ -91,7 +91,7 @@ const comparisonInsight = asyncHandler(async (req, res) => {
   const rfqId = (req.body.rfqId || '').trim();
   if (!rfqId) return res.status(422).json({ message: 'rfqId is required.' });
 
-  const cmp = await compareRfq(rfqId, req.user._id);
+  const cmp = await compareRfq(rfqId, req.user.organization);
   if (!cmp.vendors.length) {
     return res.status(404).json({ message: 'No quotations to analyse for this RFQ.' });
   }
@@ -113,16 +113,16 @@ const comparisonInsight = asyncHandler(async (req, res) => {
 // GET /api/ai/reports/summary
 // Plain-English executive summary of current procurement KPIs.
 const reportSummary = asyncHandler(async (req, res) => {
-  const owner = req.user._id;
+  const owner = req.user.organization;
   const SPENDABLE = ['Approved', 'Sent', 'Received'];
   const [vendors, activeVendors, rfqs, openRfqs, pos, invoices, topVendors] = await Promise.all([
-    Vendor.countDocuments({ createdBy: owner }),
-    Vendor.countDocuments({ createdBy: owner, status: 'Active' }),
-    RFQ.countDocuments({ createdBy: owner }),
-    RFQ.countDocuments({ createdBy: owner, status: 'Published' }),
-    PurchaseOrder.find({ createdBy: owner }).select('amount status vendorId vendor').lean(),
-    Invoice.find({ createdBy: owner }).select('amount amountPaid status').lean(),
-    PurchaseOrder.find({ createdBy: owner, status: { $in: SPENDABLE } }).select('vendor amount').lean(),
+    Vendor.countDocuments({ organization: owner }),
+    Vendor.countDocuments({ organization: owner, status: 'Active' }),
+    RFQ.countDocuments({ organization: owner }),
+    RFQ.countDocuments({ organization: owner, status: 'Published' }),
+    PurchaseOrder.find({ organization: owner }).select('amount status vendorId vendor').lean(),
+    Invoice.find({ organization: owner }).select('amount amountPaid status').lean(),
+    PurchaseOrder.find({ organization: owner, status: { $in: SPENDABLE } }).select('vendor amount').lean(),
   ]);
 
   const totalSpend = pos.filter((p) => SPENDABLE.includes(p.status)).reduce((t, p) => t + (p.amount || 0), 0);
@@ -224,15 +224,15 @@ const extractDocument = asyncHandler(async (req, res) => {
 // GET /api/ai/vendors/:id/risk
 // Score a vendor's reliability/risk from their history.
 const vendorRisk = asyncHandler(async (req, res) => {
-  const owner = req.user._id;
-  const vendor = await Vendor.findOne({ code: req.params.id, createdBy: owner });
+  const owner = req.user.organization;
+  const vendor = await Vendor.findOne({ code: req.params.id, organization: owner });
   if (!vendor) return res.status(404).json({ message: 'Vendor not found.' });
 
   const [quotes, pos, invoices, activity] = await Promise.all([
-    Quotation.find({ vendorId: vendor.code, createdBy: owner }).select('amount deliveryDays status submitted').lean(),
-    PurchaseOrder.find({ vendorId: vendor.code, createdBy: owner }).select('amount status created delivery').lean(),
-    Invoice.find({ vendorId: vendor.code, createdBy: owner }).select('amount amountPaid status due').lean(),
-    ActivityLog.find({ userId: owner, entityType: 'Vendor', entityId: vendor.code }).select('action message createdAt').sort({ createdAt: -1 }).limit(20).lean(),
+    Quotation.find({ vendorId: vendor.code, organization: owner }).select('amount deliveryDays status submitted').lean(),
+    PurchaseOrder.find({ vendorId: vendor.code, organization: owner }).select('amount status created delivery').lean(),
+    Invoice.find({ vendorId: vendor.code, organization: owner }).select('amount amountPaid status due').lean(),
+    ActivityLog.find({ organization: owner, entityType: 'Vendor', entityId: vendor.code }).select('action message createdAt').sort({ createdAt: -1 }).limit(20).lean(),
   ]);
 
   const profile = {
@@ -272,16 +272,16 @@ const vendorRisk = asyncHandler(async (req, res) => {
 // GET /api/ai/invoices/:id/audit
 // 3-way match (invoice vs PO) + duplicate detection.
 const invoiceAudit = asyncHandler(async (req, res) => {
-  const owner = req.user._id;
-  const invoice = await Invoice.findOne({ code: req.params.id, createdBy: owner });
+  const owner = req.user.organization;
+  const invoice = await Invoice.findOne({ code: req.params.id, organization: owner });
   if (!invoice) return res.status(404).json({ message: 'Invoice not found.' });
 
-  const po = invoice.poId ? await PurchaseOrder.findOne({ code: invoice.poId, createdBy: owner }).lean() : null;
+  const po = invoice.poId ? await PurchaseOrder.findOne({ code: invoice.poId, organization: owner }).lean() : null;
 
   // Cheap duplicate heuristic: same vendor + amount on a different invoice.
   const possibleDuplicates = await Invoice.find({
     code: { $ne: invoice.code },
-    createdBy: owner,
+    organization: owner,
     vendorId: invoice.vendorId,
     amount: invoice.amount,
   }).select('code issued status').lean();
@@ -334,6 +334,7 @@ const invoiceAudit = asyncHandler(async (req, res) => {
   // Best-effort audit trail.
   await notify.record({
     userId: req.user?._id,
+    organization: req.user?.organization,
     actor: req.user?.name || 'AI',
     action: 'audited',
     entityType: 'Invoice',
@@ -371,7 +372,7 @@ const chat = asyncHandler(async (req, res) => {
         .map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content.slice(0, 2000) }))
     : [];
 
-  const result = await rag.answer({ message, history, owner: req.user._id });
+  const result = await rag.answer({ message, history, organization: req.user.organization, owner: req.user._id });
   res.json({ data: result });
 });
 
@@ -385,6 +386,7 @@ const chatAct = asyncHandler(async (req, res) => {
   }
   const result = await rag.executeAction({
     action,
+    organization: req.user.organization,
     owner: req.user._id,
     userId: req.user._id,
     userName: req.user.name,
@@ -395,7 +397,7 @@ const chatAct = asyncHandler(async (req, res) => {
 // POST /api/ai/chat/reindex  { force?: boolean }
 // Rebuild the signed-in user's knowledge base (embeddings).
 const reindex = asyncHandler(async (req, res) => {
-  const result = await rag.reindex({ owner: req.user._id, force: Boolean(req.body?.force) });
+  const result = await rag.reindex({ organization: req.user.organization, owner: req.user._id, force: Boolean(req.body?.force) });
   res.json({ data: result });
 });
 

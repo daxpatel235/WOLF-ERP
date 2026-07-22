@@ -21,6 +21,10 @@ const userSchema = new mongoose.Schema(
     // new account gets its own org on register; existing accounts are backfilled
     // by scripts/migrateToOrganizations.js. Nullable until that migration runs.
     organization: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', default: null, index: true },
+    // Capabilities within the organization. The owner implicitly has every
+    // permission (see middleware/permission.js), so this map only governs
+    // non-owner members. Set from the org's defaults when a member joins.
+    permissions: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' },
     // Drives the dormancy cleanup: if no user has logged in for N days, every
     // collection except User is wiped. Defaults to now so fresh accounts count

@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const User = require('../models/User');
 const Organization = require('../models/Organization');
+const { ensureOrganizationForUser } = require('../services/organizationService');
+const { effectivePermissions } = require('../middleware/permission');
 const env = require('../config/env');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { sendMail } = require('../services/emailService');
@@ -14,6 +16,23 @@ function signToken(user) {
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// Everything the client needs to render a workspace-aware, permission-gated UI.
+// Returned alongside the user on register / login / me so the app never has to
+// guess what the signed-in member is allowed to do.
+async function sessionContext(user) {
+  if (!user.organization) return { organization: null, permissions: {} };
+  const [org, permissions] = await Promise.all([
+    Organization.findById(user.organization).select('name ownerId').lean(),
+    effectivePermissions(user),
+  ]);
+  return {
+    organization: org
+      ? { id: String(org._id), name: org.name, isOwner: String(org.ownerId) === String(user._id) }
+      : null,
+    permissions,
+  };
+}
 
 // Shown on a brand-new account's first sign-in.
 function welcomeNotice() {
@@ -56,21 +75,14 @@ const register = asyncHandler(async (req, res) => {
   // login shouldn't re-trigger the first-login welcome.
   const user = await User.create({ name, email, password, role: safeRole, company, loginCount: 1 });
 
-  // Team collaboration (Phase 1): every new account owns a fresh workspace. The
-  // org is the future isolation boundary; for now records still scope by
-  // createdBy, so this changes no existing behaviour. updateOne (not save)
-  // avoids re-running the password-hash hook.
-  const org = await Organization.create({
-    name: (company && company.trim()) || `${user.name}'s Workspace`,
-    ownerId: user._id,
-  });
-  await User.updateOne({ _id: user._id }, { $set: { organization: org._id } });
-  user.organization = org._id; // reflect on the doc we return/sign below
+  // Team collaboration: every new account owns a fresh workspace (organization),
+  // which is the isolation boundary for all their data.
+  const orgId = await ensureOrganizationForUser(user);
 
-  await notify.record({ userId: user._id, actor: user.name, action: 'registered', entityType: 'User', message: `${user.name} created an account` });
+  await notify.record({ userId: user._id, organization: orgId, actor: user.name, action: 'registered', entityType: 'User', message: `${user.name} created an account` });
 
   const token = signToken(user);
-  res.status(201).json({ token, user: user.toJSON(), notice: welcomeNotice() });
+  res.status(201).json({ token, user: user.toJSON(), notice: welcomeNotice(), ...(await sessionContext(user)) });
 });
 
 // POST /api/auth/login
@@ -105,12 +117,12 @@ const login = asyncHandler(async (req, res) => {
   else if (dataWiped) notice = dataWipedNotice(awayDays);
 
   const token = signToken(user);
-  res.json({ token, user: user.toJSON(), notice });
+  res.json({ token, user: user.toJSON(), notice, ...(await sessionContext(user)) });
 });
 
 // GET /api/auth/me
 const me = asyncHandler(async (req, res) => {
-  res.json({ user: req.user.toJSON() });
+  res.json({ user: req.user.toJSON(), ...(await sessionContext(req.user)) });
 });
 
 const RESET_TTL_MS = 60 * 60 * 1000; // reset links are valid for 1 hour

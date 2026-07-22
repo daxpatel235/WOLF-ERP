@@ -13,7 +13,7 @@ const TABS = ["All", "Draft", "Published", "Closed", "Awarded"];
 export default function RfqsPage() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("All");
-  const { data, loading, error } = useFetch(() => rfqsApi.list(), []);
+  const { data, loading, error } = useFetch(() => rfqsApi.list(), [], { key: "rfqs" });
   const ALL = data?.data || [];
 
   const rows = useMemo(

@@ -38,4 +38,19 @@ const sendInvoiceMail = (to, invoice, note = '') =>
            ${note ? `<p>${note}</p>` : ''}`,
   });
 
-module.exports = { sendMail, sendRFQInvite, sendInvoiceMail };
+// Invite someone to join an organization (team collaboration). Best-effort like
+// every other mail: a delivery failure never blocks the invitation being created.
+const sendInvitationMail = (to, { orgName, inviterName, link, expiresAt }) =>
+  sendMail({
+    to,
+    subject: `${inviterName || 'A teammate'} invited you to ${orgName} on Wolf ERP`,
+    html: `<p>Hi,</p>
+           <p><strong>${inviterName || 'A teammate'}</strong> invited you to join the
+           <strong>${orgName}</strong> workspace on Wolf ERP.</p>
+           <p><a href="${link}">Accept the invitation</a></p>
+           <p>Or paste this URL into your browser:<br><code>${link}</code></p>
+           <p>This invitation expires on ${new Date(expiresAt).toDateString()}.</p>
+           <p>If you weren't expecting this, you can safely ignore this email.</p>`,
+  });
+
+module.exports = { sendMail, sendRFQInvite, sendInvoiceMail, sendInvitationMail };

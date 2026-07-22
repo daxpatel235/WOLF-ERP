@@ -13,7 +13,7 @@ const TABS = ["All", "Draft", "Sent", "Partially Paid", "Paid", "Overdue"];
 export default function InvoicesPage() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("All");
-  const { data, loading, error } = useFetch(() => invoicesApi.list(), []);
+  const { data, loading, error } = useFetch(() => invoicesApi.list(), [], { key: "invoices" });
   const ALL = data?.data || [];
 
   const rows = useMemo(
