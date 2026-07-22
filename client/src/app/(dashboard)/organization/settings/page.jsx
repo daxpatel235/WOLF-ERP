@@ -29,7 +29,7 @@ function Toggle({ checked, disabled, onChange }) {
 }
 
 export default function OrganizationSettingsPage() {
-  const { can, isOwner, refreshOrganization } = useAuth();
+  const { can, isOwner, permissionsKnown, refreshOrganization } = useAuth();
   const canManage = isOwner || can("canManageOrgSettings");
 
   const [org, setOrg] = useState(null);
@@ -106,7 +106,10 @@ export default function OrganizationSettingsPage() {
           <CheckCircle2 size={16} /> {saved}
         </div>
       )}
-      {!canManage && (
+      {/* Only claim they lack access once we've actually heard back what they
+          may do — otherwise the owner is told "you can't" while their
+          capabilities are still loading. */}
+      {permissionsKnown && !canManage && (
         <div className="flex items-start gap-2.5 p-3 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-500">
           <Lock size={16} className="mt-0.5 shrink-0 text-slate-400" />
           <p>Only the workspace owner (or a member with &ldquo;Workspace settings&rdquo;) can change these.</p>

@@ -31,7 +31,7 @@ function Toggle({ checked, disabled, onChange, id }) {
 }
 
 export default function PermissionsPage() {
-  const { can, isOwner } = useAuth();
+  const { can, isOwner, permissionsKnown } = useAuth();
   const canManage = isOwner || can("canManageMembers");
 
   const [members, setMembers] = useState([]);
@@ -93,7 +93,9 @@ export default function PermissionsPage() {
         </div>
       )}
 
-      {!canManage && (
+      {/* Don't assert a restriction before the server has told us what this
+          member holds — the owner would otherwise see it on their own page. */}
+      {permissionsKnown && !canManage && (
         <div className="flex items-start gap-2.5 p-3 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-500">
           <Lock size={16} className="mt-0.5 shrink-0 text-slate-400" />
           <p>You can see what each teammate is allowed to do, but only the owner (or a member with

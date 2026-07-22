@@ -7,6 +7,10 @@ export const API_URL =
 // Storage keys (kept stable so existing sessions keep working).
 export const TOKEN_KEY = "wolf_token";
 export const USER_KEY = "wolf_user";
+// Workspace + capabilities for the signed-in member. Cached next to the user so
+// a reload knows what they're allowed to do on the FIRST render, instead of
+// treating "not loaded yet" as "not allowed".
+export const CONTEXT_KEY = "wolf_context";
 
 export const ROLES = ["admin", "manager", "approver", "buyer", "vendor"];
 

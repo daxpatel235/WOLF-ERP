@@ -4,7 +4,15 @@ import { createContext, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { authApi, teamApi } from "@/lib/api";
 import { clearFetchCache } from "@/hooks/useFetch";
-import { saveSession, clearSession, getStoredUser, setAuthCookie, isTokenExpired } from "@/lib/utils";
+import {
+  saveSession,
+  clearSession,
+  getStoredUser,
+  setAuthCookie,
+  isTokenExpired,
+  saveSessionContext,
+  getStoredContext,
+} from "@/lib/utils";
 import { TOKEN_KEY } from "@/lib/constants";
 
 export const AuthContext = createContext(null);
@@ -48,6 +56,15 @@ export function AuthProvider({ children }) {
     const stored = getStoredUser();
     if (stored) {
       setUser(stored);
+      // Restore the cached workspace + capabilities in the SAME pass as the
+      // user. Without this the dashboard renders with permissions still null,
+      // and `isOwner`/`can()` report false — so the owner's own screens tell
+      // them they lack access until /me lands (or forever, if it fails).
+      const storedContext = getStoredContext();
+      if (storedContext) {
+        setOrganization(storedContext.organization);
+        setPermissions(storedContext.permissions);
+      }
       // Refresh the middleware cookie (sliding 15-day window) so the edge
       // redirect keeps working for active users and backfills older sessions.
       const remembered =
@@ -63,6 +80,7 @@ export function AuthProvider({ children }) {
         setUser(res.user);
         setOrganization(res.organization || null);
         setPermissions(res.permissions || {});
+        saveSessionContext(res.organization || null, res.permissions || {});
       })
       .catch((err) => {
         // Only drop the session when the server actively rejects the token
@@ -91,6 +109,7 @@ export function AuthProvider({ children }) {
     setUser(res.user);
     setOrganization(res.organization || null);
     setPermissions(res.permissions || {});
+    saveSessionContext(res.organization || null, res.permissions || {});
     setNotice(res.notice || null);
     return res.user;
   }, []);
@@ -136,6 +155,7 @@ export function AuthProvider({ children }) {
     const res = await authApi.me();
     setOrganization(res.organization || null);
     setPermissions(res.permissions || {});
+    saveSessionContext(res.organization || null, res.permissions || {});
   }, []);
 
   const value = {
@@ -153,6 +173,11 @@ export function AuthProvider({ children }) {
     permissions,
     can,
     isOwner: Boolean(organization?.isOwner),
+    // Have we actually heard what this member may do? `can()` and `isOwner`
+    // both return false while unknown, which is the safe default for HIDING an
+    // action — but it must never be reported to the user as a denial. Gate any
+    // "you don't have access" message on this being true.
+    permissionsKnown: permissions !== null,
     refreshOrganization,
   };
 

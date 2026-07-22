@@ -1,6 +1,6 @@
 // Misc client helpers: session storage + small utilities.
 
-import { TOKEN_KEY, USER_KEY, ROLE_HOME } from "./constants";
+import { TOKEN_KEY, USER_KEY, CONTEXT_KEY, ROLE_HOME } from "./constants";
 
 // Cookie read by middleware.js to redirect signed-in users away from public
 // pages (/, /login, /register) at the EDGE — before any HTML paints, so there's
@@ -41,8 +41,35 @@ export function clearSession() {
   [localStorage, sessionStorage].forEach((s) => {
     s.removeItem(TOKEN_KEY);
     s.removeItem(USER_KEY);
+    s.removeItem(CONTEXT_KEY);
   });
   clearAuthCookie();
+}
+
+// Cache the workspace + capabilities the server reported for this member.
+// Stored beside the user (same store, same lifetime) so a reload can answer
+// "may I do this?" on the first render rather than after /me round-trips.
+// This is a CACHE for rendering only — the server re-checks every request, so a
+// tampered copy grants nothing.
+export function saveSessionContext(organization, permissions) {
+  if (typeof window === "undefined") return;
+  // Follow the token: whichever store holds the session owns the context too.
+  const store = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
+  store.setItem(CONTEXT_KEY, JSON.stringify({ organization, permissions }));
+}
+
+export function getStoredContext() {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem(CONTEXT_KEY) || sessionStorage.getItem(CONTEXT_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    // Only trust a shape we recognise; anything else is treated as absent.
+    if (!parsed || typeof parsed !== "object" || !parsed.permissions) return null;
+    return { organization: parsed.organization || null, permissions: parsed.permissions };
+  } catch {
+    return null;
+  }
 }
 
 // Is this JWT past its expiry? We read the `exp` claim (no signature check —

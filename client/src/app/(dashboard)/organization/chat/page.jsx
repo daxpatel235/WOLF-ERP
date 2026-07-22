@@ -18,7 +18,7 @@ const timeOf = (d) =>
   new Date(d).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 
 export default function TeamChatPage() {
-  const { user, can, isOwner } = useAuth();
+  const { user, can, isOwner, permissionsKnown } = useAuth();
   const allowed = isOwner || can("canChat");
 
   const [channels, setChannels] = useState([]);
@@ -210,6 +210,16 @@ export default function TeamChatPage() {
       setCreating(false);
     }
   };
+
+  // Wait until the server has told us what this member may do. Locking the page
+  // on a not-yet-known answer shows the owner a denial for their own workspace.
+  if (!permissionsKnown) {
+    return (
+      <div className="flex items-center gap-2 py-10 text-slate-500">
+        <Loader2 size={18} className="animate-spin" /> Loading chat…
+      </div>
+    );
+  }
 
   if (!allowed) {
     return (
