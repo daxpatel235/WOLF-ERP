@@ -90,6 +90,10 @@ html.dark {
 .dark [class*="bg-blue-100"] {
   background-color: rgb(59 130 246 / 0.14);
 }
+.dark [class*="bg-brand-50"],
+.dark [class*="bg-brand-100"] {
+  background-color: rgb(59 130 246 / 0.14);
+}
 .dark [class*="bg-sky-50"],
 .dark [class*="bg-sky-100"] {
   background-color: rgb(14 165 233 / 0.14);
@@ -125,6 +129,15 @@ html.dark {
 .dark .text-sky-600 { color: rgb(56 189 248); }
 .dark .text-violet-600 { color: rgb(167 139 250); }
 .dark .text-purple-600 { color: rgb(192 132 252); }
+
+/* `brand` is a custom-named color scale (tailwind.config.js), not literally
+   "blue" — the .text-blue-* overrides above never match .text-brand-*, even
+   though brand-700 IS blue-700 under the hood. Every status badge for
+   published/sent/open/invited uses this pair (see lib/format.js badgeClass),
+   so without this override every such badge kept its light-mode-only dark-navy
+   text on the new translucent dark background above: low-contrast dark-on-dark. */
+.dark .text-brand-700 { color: rgb(96 165 250); }
+.dark .text-brand-600 { color: rgb(96 165 250); }
 
 /* Bordered light chips would otherwise draw a bright ring on dark. */
 .dark [class*="border-emerald-100"],

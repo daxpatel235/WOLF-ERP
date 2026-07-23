@@ -88,10 +88,10 @@ export default function AuthLayout({ children }) {
               className="w-10 h-10 object-contain"
             />
             <span className="leading-tight text-left">
-              <span className="block font-bold tracking-tight text-lg text-slate-900">
+              <span className="block font-bold tracking-tight text-lg text-fg">
                 Wolf
               </span>
-              <span className="block text-xs text-slate-500 -mt-0.5">
+              <span className="block text-xs text-fg-muted -mt-0.5">
                 Procurement ERP
               </span>
             </span>
@@ -101,7 +101,7 @@ export default function AuthLayout({ children }) {
             {children}
           </div>
 
-          <p className="lg:hidden text-center text-xs text-slate-400 mt-6">
+          <p className="lg:hidden text-center text-xs text-fg-muted mt-6">
             © {new Date().getFullYear()} Wolf ERP. All rights reserved.
           </p>
         </div>
