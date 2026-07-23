@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "remote-live-ui",
+  "description": "Permissions for the live UI loaded from the deployed website. Tauri blocks IPC from remote origins entirely unless the origin is listed here, so this is what lets the deployed build reach the offline cache, the session store and the updater.",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["https://wolf-erp.vercel.app"]
+  },
+  "permissions": [
+    "core:default",
+    "process:default",
+    "updater:default"
+  ]
+}

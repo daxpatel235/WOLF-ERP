@@ -1,0 +1,22 @@
+{
+  "name": "wolf-erp-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Wolf ERP for Windows — a standalone Tauri shell around the Wolf ERP client, connected to the same backend as the website.",
+  "scripts": {
+    "postinstall": "npm --prefix app install",
+    "icons": "tauri icon assets/app-icon.png",
+    "sync": "node scripts/sync-ui.js",
+    "export": "npm run sync && npm --prefix app run build",
+    "dev": "cargo tauri dev",
+    "build": "npm run export && node scripts/build.js",
+    "build:exe": "npm run export && node scripts/build.js -- --bundles nsis",
+    "build:msi": "npm run export && node scripts/build.js -- --bundles msi",
+    "build:all": "npm run export && node scripts/build.js -- --bundles nsis,msi",
+    "release": "node scripts/release.js",
+    "audit:bundle": "node scripts/audit-bundle.js"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

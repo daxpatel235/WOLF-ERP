@@ -1,0 +1,44 @@
+[package]
+name = "wolf-erp-desktop"
+version = "1.0.0"
+description = "Wolf ERP desktop client for Windows"
+authors = ["Wolf ERP"]
+edition = "2021"
+rust-version = "1.77"
+
+# The library name the generated bindings expect.
+[lib]
+name = "wolf_erp_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Issues API requests from the Rust process instead of the webview. A native app
+# has no business being subject to browser CORS — this removes the preflight
+# entirely, so the desktop client works against the same server as the website
+# without the server needing to allow-list a `tauri://` origin.
+tauri-plugin-http = "2"
+# Self-update. The shell fetches a signed manifest on launch and installs a
+# newer build in place, so native changes ship without the user reinstalling.
+# UI changes don't come through here — they arrive over the network.
+tauri-plugin-updater = "2"
+# Provides the restart used to apply a downloaded update.
+tauri-plugin-process = "2"
+# Used at startup to confirm the live UI is actually being served before the
+# window is pointed at it. Already in the tree via tauri-plugin-http, so this
+# costs no extra compile time; rustls avoids a dependency on the system OpenSSL.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+
+# Release profile tuned for installer size — the whole point of shipping Tauri
+# instead of Electron is a small binary, so don't give it back here.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

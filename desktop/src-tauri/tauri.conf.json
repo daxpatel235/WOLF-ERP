@@ -1,0 +1,83 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Wolf ERP",
+  "version": "1.0.0",
+  "identifier": "com.wolferp.desktop",
+
+  "build": {
+    "frontendDist": "../app/out",
+    "devUrl": "http://localhost:3000"
+  },
+
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self' 'unsafe-inline'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data: blob:",
+        "font-src": "'self' data:",
+        "connect-src": "'self' ipc: http://ipc.localhost",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "form-action": "'none'",
+        "frame-src": "'none'",
+        "frame-ancestors": "'none'",
+        "worker-src": "'self'"
+      },
+      "dangerousDisableAssetCspModification": false
+    }
+  },
+
+  "plugins": {
+    "updater": {
+      "active": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ4NjQ1RkU4Q0ZFM0Y3OTIKUldTUzkrUFA2RjlrU09pUCtWalkrbGRLOGVzVnMvS0thY09vWi9IeEVDdkE4T2kyQXVIT0lGQkkK",
+      "endpoints": [
+        "https://github.com/daxpatel235/WOLF-ERP/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  },
+
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "createUpdaterArtifacts": true,
+    "publisher": "Wolf ERP",
+    "copyright": "© 2026 Wolf ERP",
+    "category": "Business",
+    "shortDescription": "Procurement ERP for Windows",
+    "longDescription": "Wolf ERP desktop client — manage vendors, RFQs, quotations, purchase orders, approvals and invoices. Connects to the same Wolf ERP backend as the web app, so your workspace and data are shared across both.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [],
+    "windows": {
+      "allowDowngrades": true,
+
+      "nsis": {
+        "displayLanguageSelector": false,
+        "languages": ["English"],
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "installer/header.bmp",
+        "sidebarImage": "installer/sidebar.bmp",
+        "installMode": "both",
+        "compression": "lzma"
+      },
+
+      "wix": {
+        "language": ["en-US"],
+        "upgradeCode": "9f2f2f8e-6c1a-5b7d-9e3c-1a4d7b8e2c60"
+      }
+    }
+  }
+}

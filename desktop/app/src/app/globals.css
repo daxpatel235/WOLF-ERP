@@ -1,0 +1,452 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ------------------------------------------------------------------
+   Semantic color tokens. Neutrals live here as CSS vars; the brand
+   (blue) lives in tailwind.config.js. Light = the warm ivory canvas
+   Wolf already used + white cards. Components that reference tokens
+   (`bg-surface`, `text-fg`, `border-border`) get both themes free.
+   ------------------------------------------------------------------ */
+:root {
+  --canvas: 255 253 247; /* #fffdf7 — warm ivory, the existing Wolf canvas */
+  --surface: 255 255 255; /* cards, topbar */
+  --surface-2: 245 243 236; /* subtle warm fill / hover */
+  --fg: 15 23 42; /* slate-900 */
+  --fg-muted: 100 116 139; /* slate-500 */
+  --border: 231 228 220; /* warm hairline */
+  --shimmer: 255 255 255; /* skeleton highlight (bright in light) */
+}
+
+/* Dark palette. Three things make or break a dark UI, and all three are set
+   here rather than per-component:
+     1. Surfaces must STEP UP from the canvas, not sit flat on it — shadows are
+        invisible on dark, so elevation has to come from lightness.
+     2. Borders must be light enough to actually read at 1px.
+     3. Muted text needs lifting; slate-500 on near-black fails contrast.
+   Tinted toward blue to match the brand rather than going neutral grey. */
+.dark {
+  --canvas: 7 10 15; /* deepest layer — the page itself */
+  --surface: 26 33 44; /* cards/topbar; a clear step up from the canvas */
+  --surface-2: 39 48 62; /* hover, inset fills, table headers */
+  --fg: 231 237 245; /* 14.5:1 on surface */
+  --fg-muted: 152 165 183; /* 6.3:1 on surface — comfortably past AA */
+  --border: 58 70 88; /* reads as a hairline without glaring */
+  --shimmer: 148 163 184;
+}
+
+html {
+  color-scheme: light;
+  scroll-behavior: smooth;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+/* ------------------------------------------------------------------
+   Dark-mode elevation. The light shadows are near-black at very low
+   alpha, which is literally invisible on a dark canvas — cards would
+   read as flat cut-outs. Deepen them and add a subtle top highlight so
+   surfaces still feel lifted.
+   ------------------------------------------------------------------ */
+.dark .shadow-card {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 1px 3px 0 rgb(0 0 0 / 0.3);
+}
+.dark .shadow-card-hover,
+.dark .hover\:shadow-card-hover:hover {
+  box-shadow: 0 4px 14px -2px rgb(0 0 0 / 0.55), 0 2px 8px -2px rgb(0 0 0 / 0.4);
+}
+.dark .shadow-pop {
+  box-shadow: 0 16px 40px -12px rgb(0 0 0 / 0.75);
+}
+.dark .shadow-sm {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.35);
+}
+.dark .shadow-lg,
+.dark .hover\:shadow-lg:hover {
+  box-shadow: 0 10px 28px -8px rgb(0 0 0 / 0.6);
+}
+
+/* Solid light-tint chips (bg-*-50/100) are near-white and blow out on a dark
+   background. Drop them to a translucent wash of the same hue and lift the
+   text, so badges keep their meaning without glaring.
+
+   `~=` (exact space-separated token), NOT `*=` (substring). A substring match
+   also catches `hover:bg-red-50`, which painted a permanent red wash onto
+   elements that were only ever meant to tint on hover — the Sign out button,
+   row hovers, the AI buttons. That single operator was making a dozen neutral
+   controls look permanently coloured in dark mode. Hover states are restored
+   explicitly below. */
+.dark [class~="bg-emerald-50"],
+.dark [class~="bg-emerald-100"] {
+  background-color: rgb(16 185 129 / 0.14);
+}
+.dark [class~="bg-green-50"],
+.dark [class~="bg-green-100"] {
+  background-color: rgb(34 197 94 / 0.14);
+}
+.dark [class~="bg-red-50"],
+.dark [class~="bg-red-100"] {
+  background-color: rgb(239 68 68 / 0.14);
+}
+.dark [class~="bg-amber-50"],
+.dark [class~="bg-amber-100"] {
+  background-color: rgb(245 158 11 / 0.14);
+}
+.dark [class~="bg-blue-50"],
+.dark [class~="bg-blue-100"] {
+  background-color: rgb(59 130 246 / 0.14);
+}
+.dark [class~="bg-brand-50"],
+.dark [class~="bg-brand-100"] {
+  background-color: rgb(59 130 246 / 0.14);
+}
+.dark [class~="bg-sky-50"],
+.dark [class~="bg-sky-100"] {
+  background-color: rgb(14 165 233 / 0.14);
+}
+.dark [class~="bg-violet-50"],
+.dark [class~="bg-violet-100"] {
+  background-color: rgb(139 92 246 / 0.14);
+}
+.dark [class~="bg-purple-50"],
+.dark [class~="bg-purple-100"] {
+  background-color: rgb(168 85 247 / 0.14);
+}
+.dark [class~="bg-yellow-50"],
+.dark [class~="bg-yellow-100"] {
+  background-color: rgb(234 179 8 / 0.14);
+}
+
+/* The hover counterparts, which the exact-token rules above deliberately skip.
+   Kept slightly stronger than the resting chips so a hover still reads.
+   Substring matching is safe here because the rule is gated on :hover — and it
+   is needed to also catch opacity suffixes like `hover:bg-blue-50/30`, which
+   the dashboard's pending-approval cards use. */
+.dark [class*="hover:bg-emerald-50"]:hover { background-color: rgb(16 185 129 / 0.16); }
+.dark [class*="hover:bg-green-50"]:hover { background-color: rgb(34 197 94 / 0.16); }
+.dark [class*="hover:bg-red-50"]:hover { background-color: rgb(239 68 68 / 0.16); }
+.dark [class*="hover:bg-amber-50"]:hover { background-color: rgb(245 158 11 / 0.16); }
+.dark [class*="hover:bg-blue-50"]:hover { background-color: rgb(59 130 246 / 0.16); }
+.dark [class*="hover:bg-sky-50"]:hover { background-color: rgb(14 165 233 / 0.16); }
+.dark [class*="hover:bg-violet-50"]:hover { background-color: rgb(139 92 246 / 0.16); }
+.dark [class*="hover:bg-slate-50"]:hover { background-color: rgb(var(--surface-2)); }
+
+/* …and the 700-weight text on those chips is too dark to read on the wash. */
+.dark .text-emerald-700 { color: rgb(52 211 153); }
+.dark .text-green-700 { color: rgb(74 222 128); }
+.dark .text-red-700 { color: rgb(248 113 113); }
+.dark .text-amber-700 { color: rgb(251 191 36); }
+.dark .text-blue-700 { color: rgb(96 165 250); }
+.dark .text-sky-700 { color: rgb(56 189 248); }
+.dark .text-violet-700 { color: rgb(167 139 250); }
+.dark .text-purple-700 { color: rgb(192 132 252); }
+.dark .text-yellow-700 { color: rgb(250 204 21); }
+.dark .text-emerald-600 { color: rgb(52 211 153); }
+.dark .text-green-600 { color: rgb(74 222 128); }
+.dark .text-red-600 { color: rgb(248 113 113); }
+.dark .text-amber-600 { color: rgb(251 191 36); }
+.dark .text-blue-600 { color: rgb(96 165 250); }
+.dark .text-sky-600 { color: rgb(56 189 248); }
+.dark .text-violet-600 { color: rgb(167 139 250); }
+.dark .text-purple-600 { color: rgb(192 132 252); }
+
+/* `brand` is a custom-named color scale (tailwind.config.js), not literally
+   "blue" — the .text-blue-* overrides above never match .text-brand-*, even
+   though brand-700 IS blue-700 under the hood. Every status badge for
+   published/sent/open/invited uses this pair (see lib/format.js badgeClass),
+   so without this override every such badge kept its light-mode-only dark-navy
+   text on the new translucent dark background above: low-contrast dark-on-dark. */
+.dark .text-brand-700 { color: rgb(96 165 250); }
+.dark .text-brand-600 { color: rgb(96 165 250); }
+
+/* Gradients need separate handling from the flat chips above: Tailwind
+   compiles `from-*`/`to-*` into --tw-gradient-* custom properties, not into
+   `background-color`, so the [class*="bg-violet-50"] rules never touch them.
+   The AI panels (from-violet-50 → to-white) stayed a bright white card on the
+   dark canvas because of exactly this. */
+.dark [class*="from-violet-50"] {
+  --tw-gradient-from: rgb(139 92 246 / 0.16) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(139 92 246 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+.dark [class*="to-white"] {
+  --tw-gradient-to: rgb(var(--surface) / 0) var(--tw-gradient-to-position);
+}
+
+/* Bordered light chips would otherwise draw a bright ring on dark.
+   Exact-token again, so `hover:border-*` and `focus:border-*` keep behaving
+   like state changes rather than becoming permanent. */
+.dark [class~="border-emerald-100"],
+.dark [class~="border-emerald-200"] { border-color: rgb(16 185 129 / 0.25); }
+.dark [class~="border-red-100"],
+.dark [class~="border-red-200"],
+.dark [class~="border-red-300"] { border-color: rgb(239 68 68 / 0.3); }
+.dark [class~="border-amber-100"],
+.dark [class~="border-amber-200"] { border-color: rgb(245 158 11 / 0.25); }
+.dark [class~="border-blue-100"],
+.dark [class~="border-blue-200"] { border-color: rgb(59 130 246 / 0.25); }
+.dark [class~="border-violet-100"],
+.dark [class~="border-violet-200"] { border-color: rgb(139 92 246 / 0.25); }
+
+/* Focus rings are ~-100 tints chosen against white; on the dark canvas they
+   flare as a bright halo. Same hue, carried by alpha instead of lightness. */
+.dark [class~="focus\:ring-blue-100"]:focus,
+.dark [class~="focus\:ring-blue-200"]:focus { --tw-ring-color: rgb(59 130 246 / 0.35); }
+.dark [class~="focus\:ring-red-100"]:focus { --tw-ring-color: rgb(239 68 68 / 0.35); }
+.dark [class~="focus\:ring-violet-100"]:focus { --tw-ring-color: rgb(139 92 246 / 0.35); }
+.dark [class~="ring-blue-100"] { --tw-ring-color: rgb(59 130 246 / 0.3); }
+.dark [class~="ring-violet-100"] { --tw-ring-color: rgb(139 92 246 / 0.3); }
+.dark [class~="ring-red-100"] { --tw-ring-color: rgb(239 68 68 / 0.3); }
+
+/* ------------------------------------------------------------------
+   Native form controls.
+
+   Checkboxes, radios, selects and date pickers are drawn by the OS, not
+   by our CSS — Tailwind classes on them mostly do nothing (there's no
+   forms plugin here). Left alone they keep light-mode chrome on a dark
+   card: the "Keep me signed in" box rendered as a pale beige square, and
+   the native date picker panel came up white.
+
+   `color-scheme` is what actually tells the platform to draw the dark
+   variant; `accent-color` keeps the checked state on-brand in both
+   themes instead of the OS default blue-or-grey.
+   ------------------------------------------------------------------ */
+/* Checkboxes and radios are drawn entirely by us. `color-scheme: dark` alone
+   did not reach them — Chromium kept painting the light control, so the
+   "Keep me signed in" box stayed a pale beige square on the dark card. Taking
+   `appearance: none` and rebuilding them from tokens is the only reliable fix,
+   and it makes the checked state on-brand in both themes rather than the OS
+   default blue. */
+input[type="checkbox"],
+input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  border: 1.5px solid rgb(var(--fg-muted) / 0.5);
+  border-radius: 0.25rem;
+  background-color: rgb(var(--surface));
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+input[type="radio"] {
+  border-radius: 9999px;
+}
+input[type="checkbox"]::before,
+input[type="radio"]::before {
+  content: "";
+  width: 0.625rem;
+  height: 0.625rem;
+  transform: scale(0);
+  transition: transform 0.12s cubic-bezier(0.22, 1, 0.36, 1);
+  /* An inset shadow rather than a background, so the tick inherits nothing
+     from the box it sits in. */
+  box-shadow: inset 1rem 1rem #fff;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+input[type="radio"]::before {
+  border-radius: 9999px;
+  clip-path: none;
+  width: 0.5rem;
+  height: 0.5rem;
+}
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+  background-color: rgb(37 99 235);
+  border-color: rgb(37 99 235);
+}
+input[type="checkbox"]:checked::before,
+input[type="radio"]:checked::before {
+  transform: scale(1);
+}
+input[type="checkbox"]:hover:not(:checked),
+input[type="radio"]:hover:not(:checked) {
+  border-color: rgb(37 99 235 / 0.6);
+}
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+  outline: 2px solid rgb(37 99 235 / 0.5);
+  outline-offset: 2px;
+}
+input[type="checkbox"]:disabled,
+input[type="radio"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* The calendar/clock glyph is a black bitmap; invert it so it's visible. */
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator,
+.dark input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.7);
+}
+/* A <select>'s dropdown list is OS-drawn and ignores the parent's
+   background, so the options need the colour set on the element itself. */
+.dark select option,
+.dark select optgroup {
+  background-color: rgb(var(--surface));
+  color: rgb(var(--fg));
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: rgb(var(--canvas));
+  color: rgb(var(--fg));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgb(37 99 235 / 0.18);
+}
+
+/* ------------------------------------------------------------------
+   Themed scrollbars — thin and tinted to the border token.
+   ------------------------------------------------------------------ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--fg-muted) / 0.28) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--fg-muted) / 0.28);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--fg-muted) / 0.5);
+  background-clip: content-box;
+}
+/* The dark slate sidebar keeps a dark-tuned bar regardless of theme. */
+.slate-scroll {
+  scrollbar-color: rgb(148 163 184 / 0.3) transparent;
+}
+.slate-scroll::-webkit-scrollbar-thumb {
+  background: rgb(148 163 184 / 0.28);
+  background-clip: content-box;
+}
+
+/* Tabular figures — align numerals in stats, tables & money columns. */
+.tabular-nums,
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* ------------------------------------------------------------------
+   Motion — a small vocabulary. `.stagger` children rise in sequence.
+   ------------------------------------------------------------------ */
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-enter {
+  animation: enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.stagger > * {
+  animation: enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger > *:nth-child(1) {
+  animation-delay: 0.02s;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 0.1s;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 0.14s;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 0.18s;
+}
+.stagger > *:nth-child(6) {
+  animation-delay: 0.22s;
+}
+.stagger > *:nth-child(7) {
+  animation-delay: 0.26s;
+}
+.stagger > *:nth-child(8) {
+  animation-delay: 0.3s;
+}
+
+/* Loading shimmer for <div class="skeleton" />. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgb(var(--surface-2));
+  border-radius: 0.5rem;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(var(--shimmer) / 0.12),
+    transparent
+  );
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print: hide the app chrome so only the document prints */
+@media print {
+  aside,
+  header {
+    display: none !important;
+  }
+  .lg\:pl-72 {
+    padding-left: 0 !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

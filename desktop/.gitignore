@@ -1,0 +1,19 @@
+# Build output
+app/out/
+app/.next/
+app/node_modules/
+node_modules/
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Installers land here
+dist/
+
+# Updater signing keys. The private half must never be committed — anyone with
+# it can sign an "update" that every installed copy will accept and run.
+# It lives at ~/.tauri/wolf-erp-updater.key; these patterns are a backstop in
+# case one is ever generated into the project by mistake.
+*.key
+!*.key.pub
