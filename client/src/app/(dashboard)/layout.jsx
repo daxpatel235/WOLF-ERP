@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
-import { useFetch } from "@/hooks/useFetch";
+import { useFetch, pruneFetchCache } from "@/hooks/useFetch";
+import { warmCache } from "@/lib/warm";
 import { approvalsApi } from "@/lib/api";
 import { initialsOf } from "@/lib/utils";
 import GlobalSearch from "@/components/shared/GlobalSearch";
@@ -86,6 +87,28 @@ export default function DashboardLayout({ children }) {
     { key: "approvals:count", keyDeps: [user?.id] }
   );
   const pendingCount = countRes?.pending || 0;
+
+  // ---- Warm the rest of the workspace in the background ----
+  // The landing page's own data is already in flight by now; this fills in what
+  // the sidebar leads to, so the first click into Vendors, POs or Invoices
+  // paints from cache instead of waiting on a round trip. Held back briefly so
+  // the current page's requests get the connection first, and cancelled if the
+  // user signs out before it finishes.
+  useEffect(() => {
+    if (!user) return undefined;
+    pruneFetchCache();
+    let cancel = () => {};
+    const timer = setTimeout(() => {
+      cancel = warmCache();
+    }, 600);
+    return () => {
+      clearTimeout(timer);
+      cancel();
+    };
+    // Keyed on the id, not the object: /me replaces `user` with an equivalent
+    // copy moments after hydration, and re-running here would cancel the
+    // warm-up that had only just started.
+  }, [user?.id]);
 
   // ---- Logout handler ----
   // logout() (AuthContext) clears the session and routes to the landing page.

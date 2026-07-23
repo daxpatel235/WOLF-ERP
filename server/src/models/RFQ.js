@@ -26,9 +26,12 @@ const rfqSchema = new mongoose.Schema(
   baseOptions()
 );
 
-// Dashboard/listing queries always scope by organization, often plus status.
-// The compound also serves org-only lookups via its leading-field prefix.
-rfqSchema.index({ organization: 1, status: 1 });
+// Listing queries scope by organization, often plus status, and always sort
+// newest-first — so the sort field rides along in the index and Mongo returns
+// rows already in order. The prefixes still serve `{ organization }` and
+// `{ organization, status }` on their own.
+rfqSchema.index({ organization: 1, created: -1 });
+rfqSchema.index({ organization: 1, status: 1, created: -1 });
 
 // `invited` mirrors the count of invited vendors for the list UI.
 rfqSchema.virtual('invited').get(function getInvited() {

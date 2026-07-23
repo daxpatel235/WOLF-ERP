@@ -72,7 +72,10 @@ export default function DashboardPage() {
   const { data: summaryRes, loading: loadingSummary } = useFetch(() => reportsApi.summary(), [], { key: "reports:summary" });
   const { data: activityRes } = useFetch(() => reportsApi.activity(6), [], { key: "reports:activity:6" });
   const { data: approvalsRes } = useFetch(() => approvalsApi.list({ status: "Pending" }), [], { key: "approvals:pending" });
-  const { data: poRes } = useFetch(() => purchaseOrdersApi.list(), [], { key: "purchase-orders:all" });
+  // Same key as the Purchase Orders page, because it is the same request — a
+  // separate key would mean fetching the identical list twice and caching it
+  // twice, and the two copies could then disagree.
+  const { data: poRes } = useFetch(() => purchaseOrdersApi.list(), [], { key: "purchase-orders" });
   const { data: catRes } = useFetch(() => reportsApi.spendByCategory(), [], { key: "reports:by-category" });
 
   const s = summaryRes?.data;

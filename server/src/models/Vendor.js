@@ -23,8 +23,15 @@ const vendorSchema = new mongoose.Schema(
   baseOptions()
 );
 
-// Dashboard/listing queries always scope by organization, often plus status.
-// The compound also serves org-only lookups via its leading-field prefix.
-vendorSchema.index({ organization: 1, status: 1 });
+// Dashboard/listing queries always scope by organization, often plus status,
+// and the list is always returned newest-first. Carrying the sort field in the
+// index lets Mongo walk it in order instead of collecting the whole match and
+// sorting it in memory — the difference between a fast list and one that slows
+// down as the workspace grows.
+//
+// The leading-field prefixes still serve `{ organization }` and
+// `{ organization, status }` lookups on their own.
+vendorSchema.index({ organization: 1, createdAt: -1 });
+vendorSchema.index({ organization: 1, status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Vendor', vendorSchema);

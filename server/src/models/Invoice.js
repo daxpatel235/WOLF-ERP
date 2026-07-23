@@ -28,7 +28,13 @@ const invoiceSchema = new mongoose.Schema(
 );
 
 // Dashboard outstanding/overdue rollups scope by organization and filter on
-// status. The compound also serves org-only lookups via its leading-field prefix.
-invoiceSchema.index({ organization: 1, status: 1 });
+// status; the list view sorts by issue date, so that field rides along and the
+// rows come back already ordered. The prefixes still serve `{ organization }`
+// and `{ organization, status }` on their own.
+invoiceSchema.index({ organization: 1, issued: -1 });
+invoiceSchema.index({ organization: 1, status: 1, issued: -1 });
+// Vendor and purchase-order detail pages pull the invoices raised against them.
+invoiceSchema.index({ organization: 1, vendorId: 1 });
+invoiceSchema.index({ organization: 1, poId: 1 });
 
 module.exports = mongoose.model('Invoice', invoiceSchema);

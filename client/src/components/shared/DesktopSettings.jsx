@@ -24,6 +24,7 @@ import {
 import { Card, Button, Field, Input } from "@/components/ui/kit";
 import { useToast } from "@/components/ui/Toast";
 import { invoke, cacheInfo, cacheClear, isDesktop as detectDesktop } from "@/lib/desktop";
+import { clearFetchCache } from "@/hooks/useFetch";
 import { timeAgo } from "@/lib/utils";
 
 const DEFAULT_API_URL = "https://wolf-erp-api.onrender.com/api";
@@ -96,6 +97,11 @@ export default function DesktopSettings() {
 
   const clearSnapshot = async () => {
     const removed = await cacheClear();
+    // The offline snapshot on disk is only half of what's saved — the instant
+    // cache the UI actually paints from lives in this window. Clearing one and
+    // not the other would leave the same figures on screen right after the user
+    // was told they'd been cleared.
+    clearFetchCache();
     await refreshSnapshot();
     toast.success(
       removed ? `Cleared ${removed} saved page(s).` : "There was nothing saved."

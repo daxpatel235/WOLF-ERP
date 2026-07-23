@@ -30,7 +30,14 @@ const purchaseOrderSchema = new mongoose.Schema(
   baseOptions()
 );
 
-// Dashboard spend rollups scope by organization and filter on status.
-purchaseOrderSchema.index({ organization: 1, status: 1 });
+// Dashboard spend rollups scope by organization and filter on status; the list
+// view sorts newest-first, so the sort field is carried in the index and the
+// rows come back already ordered. The prefixes still serve `{ organization }`
+// and `{ organization, status }` on their own.
+purchaseOrderSchema.index({ organization: 1, created: -1 });
+purchaseOrderSchema.index({ organization: 1, status: 1, created: -1 });
+// Vendor detail pages, and the spend-per-vendor rollup, look POs up by the
+// vendor's code within one workspace.
+purchaseOrderSchema.index({ organization: 1, vendorId: 1 });
 
 module.exports = mongoose.model('PurchaseOrder', purchaseOrderSchema);

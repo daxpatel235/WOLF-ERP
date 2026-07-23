@@ -50,7 +50,7 @@ export default function ReportsPage() {
   const { data: summaryRes, loading } = useFetch(() => reportsApi.summary(), [], { key: "reports:summary" });
   const { data: catRes } = useFetch(() => reportsApi.spendByCategory(), [], { key: "reports:by-category" });
   const { data: vendorRes } = useFetch(() => reportsApi.spendByVendor(), [], { key: "reports:by-vendor" });
-  const { data: poRes } = useFetch(() => purchaseOrdersApi.list(), [], { key: "purchase-orders:all" });
+  const { data: poRes } = useFetch(() => purchaseOrdersApi.list(), [], { key: "purchase-orders" });
   const toast = useToast();
 
   const s = summaryRes?.data;

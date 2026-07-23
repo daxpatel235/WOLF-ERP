@@ -37,7 +37,9 @@ const approvalSchema = new mongoose.Schema(
 );
 
 // Dashboard counts pending approvals by organization; list views filter by
-// status too. The compound also serves org-only lookups via its prefix.
-approvalSchema.index({ organization: 1, status: 1 });
+// status and sort newest-first, so the sort field is carried in the index.
+// The prefixes still serve `{ organization }` and `{ organization, status }`.
+approvalSchema.index({ organization: 1, date: -1 });
+approvalSchema.index({ organization: 1, status: 1, date: -1 });
 
 module.exports = mongoose.model('Approval', approvalSchema);

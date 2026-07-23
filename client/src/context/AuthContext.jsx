@@ -4,6 +4,7 @@ import { createContext, useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { authApi, teamApi } from "@/lib/api";
 import { clearFetchCache } from "@/hooks/useFetch";
+import { resetWarmCache, primeFromSnapshot } from "@/lib/warm";
 import {
   saveSession,
   clearSession,
@@ -17,6 +18,14 @@ import { TOKEN_KEY, USER_KEY, CONTEXT_KEY } from "@/lib/constants";
 import { isDesktop, hydrateSession } from "@/lib/desktop";
 
 export const AuthContext = createContext(null);
+
+// Drop everything the previous session cached — in memory and on the device —
+// and re-arm the launch warm-up so the incoming account fills the cache with
+// its own data rather than inheriting a half-warmed one.
+function resetCaches() {
+  clearFetchCache();
+  resetWarmCache();
+}
 
 export function AuthProvider({ children }) {
   const router = useRouter();
@@ -45,9 +54,22 @@ export function AuthProvider({ children }) {
     // localStorage. Pull it into this origin before reading any of it —
     // otherwise the first launch after switching between them looks like a
     // logout despite a perfectly good session sitting in AppData.
-    const ready = isDesktop()
-      ? hydrateSession([TOKEN_KEY, USER_KEY, CONTEXT_KEY])
-      : Promise.resolve(false);
+    //
+    // Only WAIT for that when this origin has nothing of its own. When the
+    // token is already here, the disk copy can have nothing newer to offer, and
+    // blocking the first render on a round trip through the shell would delay
+    // the whole app to learn what we already know. In that case the sync still
+    // runs — it just runs behind the render instead of in front of it.
+    const haveLocalSession =
+      typeof window !== "undefined" &&
+      Boolean(localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY));
+
+    let ready = Promise.resolve(false);
+    if (isDesktop()) {
+      const sync = hydrateSession([TOKEN_KEY, USER_KEY, CONTEXT_KEY]);
+      if (haveLocalSession) sync.catch(() => {});
+      else ready = sync;
+    }
 
     ready.then(() => {
       if (!cancelled) hydrate();
@@ -91,8 +113,23 @@ export function AuthProvider({ children }) {
         const remembered =
           typeof window !== "undefined" && !!localStorage.getItem(TOKEN_KEY);
         setAuthCookie(stored, remembered);
+
         // Render immediately from cache; verify in the background (fast load).
-        setLoading(false);
+        //
+        // On the desktop, spend one local disk read first. The dashboard is
+        // about to mount, and this is the only moment its panels can still be
+        // handed last night's figures instead of a spinner — the shell's
+        // snapshot is the app's memory across an origin switch or an update,
+        // and once the pages have mounted and started fetching it is too late
+        // to offer it to them. Bounded, and it fails open to exactly the
+        // behaviour we had before.
+        if (isDesktop()) {
+          primeFromSnapshot().finally(() => {
+            if (!cancelled) setLoading(false);
+          });
+        } else {
+          setLoading(false);
+        }
       }
 
       authApi
@@ -116,7 +153,7 @@ export function AuthProvider({ children }) {
           // it was last seen.
           if (err?.status === 401 || err?.status === 403) {
             clearSession();
-            clearFetchCache();
+            resetCaches();
             setUser(null);
             setOrganization(null);
             setPermissions(null);
@@ -130,7 +167,7 @@ export function AuthProvider({ children }) {
   const adoptSession = useCallback((res, remember) => {
     // Start every session with an empty cache: whoever was signed in before on
     // this device must leave nothing behind for the incoming account to see.
-    clearFetchCache();
+    resetCaches();
     saveSession(res.token, res.user, remember);
     loggingOut.current = false;
     setUser(res.user);
@@ -166,7 +203,7 @@ export function AuthProvider({ children }) {
     clearSession();
     // Cached responses belong to the account that fetched them — drop them so
     // the next sign-in on this device can never paint the previous user's data.
-    clearFetchCache();
+    resetCaches();
     setUser(null);
     setOrganization(null);
     setPermissions(null);

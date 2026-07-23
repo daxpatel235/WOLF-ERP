@@ -99,6 +99,17 @@ export function transport() {
 /** Read a cached response. Returns `{ key, saved_at, body }` or null. */
 export const cacheGet = (key) => tryInvoke("cache_get", { key });
 
+/**
+ * Read several cached responses at once. Returns the entries that exist, which
+ * may be fewer than were asked for — and an empty array on any failure, so a
+ * caller priming a cache never has to distinguish "nothing saved" from "the
+ * bridge is unavailable".
+ *
+ * One call rather than a loop of `cacheGet`: this runs on the launch path,
+ * where a dozen IPC round trips would cost the very delay it exists to remove.
+ */
+export const cacheGetMany = (keys) => tryInvoke("cache_get_many", { keys }, []);
+
 /** Mirror a successful response to disk. Fire-and-forget. */
 export const cachePut = (key, body) => tryInvoke("cache_put", { key, body });
 

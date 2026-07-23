@@ -26,4 +26,10 @@ const quotationSchema = new mongoose.Schema(
   baseOptions()
 );
 
+// The list is scoped by organization and sorted by submission date; the RFQ
+// comparison view pulls every quote answering one RFQ within a workspace.
+// Carrying the sort field in the index avoids an in-memory sort of the match.
+quotationSchema.index({ organization: 1, submitted: -1 });
+quotationSchema.index({ organization: 1, rfqId: 1 });
+
 module.exports = mongoose.model('Quotation', quotationSchema);

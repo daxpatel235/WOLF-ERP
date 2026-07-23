@@ -9,15 +9,36 @@ const env = require('./config/env');
 const logger = require('./utils/logger');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 const requestTimeout = require('./middleware/timeout');
+const httpCache = require('./middleware/httpCache');
 
 const app = express();
+
+// Weak ETags on every JSON response (Express's default) are what let an
+// unchanged list answer 304 instead of resending itself. Stated explicitly
+// because the clients now depend on it rather than merely benefiting from it.
+app.set('etag', 'weak');
 
 // ---- Core middleware ----
 // Security headers. crossOriginResourcePolicy relaxed so the separate frontend
 // origin can still load /uploads assets.
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(compression()); // gzip JSON/API responses and static /uploads — cuts payload size over the wire
-app.use(cors({ origin: env.CLIENT_URL === '*' ? true : [env.CLIENT_URL, 'http://localhost:3000'], credentials: true }));
+// The desktop build is the same frontend in a Tauri webview, which presents its
+// own scheme rather than the website's origin — `http://tauri.localhost` on
+// Windows, `tauri://localhost` elsewhere. Without these the packaged app's
+// requests are rejected at the CORS preflight and surface to the user as
+// "cannot reach the server", even though the API is up.
+const DESKTOP_ORIGINS = ['http://tauri.localhost', 'tauri://localhost'];
+
+app.use(
+  cors({
+    origin:
+      env.CLIENT_URL === '*'
+        ? true
+        : [env.CLIENT_URL, 'http://localhost:3000', ...DESKTOP_ORIGINS],
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: '10mb' })); // 10mb headroom for base64 images sent to the AI extractor
 app.use(express.urlencoded({ extended: true }));
 app.use(requestTimeout()); // backstop so a stuck handler can't hang the client forever
@@ -45,6 +66,9 @@ if (!env.isProd) {
 const DB_STATE = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
 app.get('/', (_req, res) => res.json({ message: 'Wolf ERP Procurement API', status: 'ok' }));
 app.get('/api/health', (_req, res) => {
+  // A probe must always reach the process. Anything in between answering it
+  // from a cache would report a dead instance as healthy.
+  res.set('Cache-Control', 'no-store');
   const state = mongoose.connection.readyState;
   const dbOk = state === 1;
   res.status(dbOk ? 200 : 503).json({
@@ -56,6 +80,8 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ---- Feature routes ----
+// Cache directives first, so every route below answers with them.
+app.use('/api', httpCache());
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/team', require('./routes/teamRoutes'));
 app.use('/api/organization', require('./routes/organizationRoutes'));
