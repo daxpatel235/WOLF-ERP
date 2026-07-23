@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Mail, Shield, Building2, Bell, LayoutGrid, LogOut } from "lucide-react";
+import { User, Mail, Shield, Building2, Bell, LayoutGrid, LogOut, Palette } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { initialsOf } from "@/lib/utils";
 import { PageHeader, Card } from "@/components/ui/kit";
 import DesktopSettings from "@/components/shared/DesktopSettings";
+import { ThemePicker } from "@/components/ui/ThemeToggle";
 
 const PREFS_KEY = "wolf_prefs";
 const DEFAULT_PREFS = {
@@ -70,7 +71,22 @@ export default function SettingsPage() {
         <h2 className="text-base font-bold text-fg mb-1">Preferences</h2>
         <p className="text-sm text-fg-muted mb-5">These are saved in your browser.</p>
 
-        <div className="divide-y divide-border">
+        {/* Theme sits above the on/off list because it's a three-way choice,
+            not a switch — "System" is the default and follows the OS live. */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-5">
+          <div className="flex items-start gap-3">
+            <Palette size={18} className="text-fg-muted mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-fg">Appearance</p>
+              <p className="text-sm text-fg-muted">
+                Applies across the app. The public website always stays light.
+              </p>
+            </div>
+          </div>
+          <ThemePicker className="shrink-0" />
+        </div>
+
+        <div className="divide-y divide-border border-t border-border">
           <Toggle
             icon={Bell}
             label="Email notifications"
@@ -143,7 +159,9 @@ function Toggle({ icon: Icon, label, hint, on, onClick }) {
         aria-checked={on}
         onClick={onClick}
         className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition ${
-          on ? "bg-blue-600" : "bg-slate-300"
+          // slate-300 is a soft grey on white but a glaring near-white pill on
+          // the dark canvas, so the off state gets its own dark value.
+          on ? "bg-blue-600" : "bg-slate-300 dark:bg-slate-600"
         }`}
       >
         <span

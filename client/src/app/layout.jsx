@@ -3,6 +3,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ConfirmProvider } from "@/components/ui/Modal";
 import { themeScript } from "@/lib/theme";
+import ThemeSync from "@/components/ui/ThemeSync";
 import DesktopStatus from "@/components/shared/DesktopStatus";
 
 export const metadata = {
@@ -22,6 +23,8 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           <ToastProvider>
             <ConfirmProvider>
+              {/* Re-resolves the theme on client navigation and on OS changes. */}
+              <ThemeSync />
               {children}
               {/* Offline / update-ready notices. Renders nothing on the web. */}
               <DesktopStatus />
