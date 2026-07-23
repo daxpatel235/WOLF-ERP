@@ -5,6 +5,19 @@ export function formatINR(n) {
   return "₹" + Number(n).toLocaleString("en-IN");
 }
 
+// Compact INR for chart axes and tight tiles, using Indian units so the scale
+// reads the way the rest of the app's numbers do (₹1.2Cr, not ₹12M).
+export function formatCompactINR(n) {
+  const v = Number(n);
+  if (!v || isNaN(v)) return "₹0";
+  const abs = Math.abs(v);
+  const sign = v < 0 ? "-" : "";
+  if (abs >= 1e7) return `${sign}₹${(abs / 1e7).toFixed(abs >= 1e8 ? 0 : 1)}Cr`;
+  if (abs >= 1e5) return `${sign}₹${(abs / 1e5).toFixed(abs >= 1e6 ? 0 : 1)}L`;
+  if (abs >= 1e3) return `${sign}₹${(abs / 1e3).toFixed(abs >= 1e4 ? 0 : 1)}K`;
+  return `${sign}₹${abs}`;
+}
+
 export function formatDate(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -26,13 +39,13 @@ export function badgeClass(status = "") {
   if (/(pending|draft|processing|partial|review|shortlisted|on hold)/.test(s))
     return "bg-amber-100 text-amber-700";
   if (/(published|sent|new|open|invited)/.test(s))
-    return "bg-blue-100 text-blue-700";
-  return "bg-slate-100 text-slate-600";
+    return "bg-blue-100 text-brand-700";
+  return "bg-surface-2 text-fg-muted";
 }
 
 export function priorityClass(priority = "") {
   const p = String(priority).toLowerCase();
   if (p === "high") return "bg-red-100 text-red-700";
   if (p === "medium") return "bg-amber-100 text-amber-700";
-  return "bg-slate-100 text-slate-600";
+  return "bg-surface-2 text-fg-muted";
 }

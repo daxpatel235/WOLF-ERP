@@ -95,7 +95,7 @@ export default function NewRfqPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <Link href="/rfqs" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-600 mb-4">
+      <Link href="/rfqs" className="inline-flex items-center gap-2 text-sm font-medium text-fg-muted hover:text-brand mb-4">
         <ArrowLeft size={16} /> Back to RFQs
       </Link>
       <PageHeader title="Create RFQ" subtitle="Collect comparable quotes from multiple vendors." />
@@ -105,11 +105,11 @@ export default function NewRfqPage() {
         {STEPS.map((s, i) => (
           <div key={s} className="flex items-center gap-2 flex-1">
             <span className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold",
-              i < step ? "bg-emerald-500 text-white" : i === step ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-500")}>
+              i < step ? "bg-emerald-500 text-white" : i === step ? "bg-blue-600 text-white" : "bg-surface-2 text-fg-muted")}>
               {i < step ? <Check size={14} /> : i + 1}
             </span>
-            <span className={cn("text-sm font-medium", i === step ? "text-slate-900" : "text-slate-400")}>{s}</span>
-            {i < STEPS.length - 1 && <span className="flex-1 h-px bg-slate-200" />}
+            <span className={cn("text-sm font-medium", i === step ? "text-fg" : "text-fg-muted")}>{s}</span>
+            {i < STEPS.length - 1 && <span className="flex-1 h-px bg-surface-2" />}
           </div>
         ))}
       </div>
@@ -122,7 +122,7 @@ export default function NewRfqPage() {
                 <label className="block text-sm font-semibold text-violet-900 mb-1.5">
                   Draft with AI
                 </label>
-                <p className="text-xs text-slate-500 mb-2.5">
+                <p className="text-xs text-fg-muted mb-2.5">
                   Describe what you need in plain English — AI fills the title, items and timeline.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-2">
@@ -170,12 +170,12 @@ export default function NewRfqPage() {
                   <input value={it.unit} onChange={(e) => setItem(i, "unit", e.target.value)} className={inputCls} />
                 </Field>
                 <button onClick={() => removeItem(i)} disabled={items.length === 1}
-                  className="p-2.5 text-slate-400 hover:text-red-600 disabled:opacity-30">
+                  className="p-2.5 text-fg-muted hover:text-red-600 disabled:opacity-30">
                   <Trash2 size={16} />
                 </button>
               </div>
             ))}
-            <button onClick={addItem} className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700">
+            <button onClick={addItem} className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:text-brand-700">
               <Plus size={16} /> Add line item
             </button>
           </div>
@@ -188,13 +188,13 @@ export default function NewRfqPage() {
               return (
                 <button key={v.id} onClick={() => toggleVendor(v.id)}
                   className={cn("flex items-center gap-3 p-3 rounded-xl border text-left transition",
-                    on ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100" : "border-slate-200 hover:border-blue-300")}>
-                  <span className={cn("w-5 h-5 rounded-md flex items-center justify-center", on ? "bg-blue-600" : "border border-slate-300")}>
+                    on ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100" : "border-border hover:border-brand/40")}>
+                  <span className={cn("w-5 h-5 rounded-md flex items-center justify-center", on ? "bg-blue-600" : "border border-border")}>
                     {on && <Check size={13} className="text-white" />}
                   </span>
                   <span>
-                    <span className="block text-sm font-semibold text-slate-900">{v.name}</span>
-                    <span className="block text-xs text-slate-400">{v.category}</span>
+                    <span className="block text-sm font-semibold text-fg">{v.name}</span>
+                    <span className="block text-xs text-fg-muted">{v.category}</span>
                   </span>
                 </button>
               );
@@ -204,7 +204,7 @@ export default function NewRfqPage() {
 
         {error && <p className="text-sm text-red-600 mt-4">{error}</p>}
 
-        <div className="flex items-center justify-between gap-3 pt-6 mt-6 border-t border-slate-100">
+        <div className="flex items-center justify-between gap-3 pt-6 mt-6 border-t border-border">
           <GhostButton onClick={() => (step === 0 ? router.push("/rfqs") : setStep((s) => s - 1))}>
             {step === 0 ? "Cancel" : "Back"}
           </GhostButton>
@@ -220,12 +220,12 @@ export default function NewRfqPage() {
 }
 
 const inputCls =
-  "w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition";
+  "w-full px-3.5 py-2.5 bg-surface border border-border rounded-lg text-sm placeholder:text-fg-muted focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition";
 
 function Field({ label, children, className = "" }) {
   return (
     <div className={className}>
-      {label && <label className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>}
+      {label && <label className="block text-sm font-medium text-fg mb-1.5">{label}</label>}
       {children}
     </div>
   );

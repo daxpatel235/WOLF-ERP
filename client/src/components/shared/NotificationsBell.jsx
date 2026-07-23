@@ -67,7 +67,7 @@ export default function NotificationsBell() {
     <div ref={ref} className="relative">
       <button
         onClick={toggle}
-        className="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
+        className="relative p-2 text-fg-muted hover:text-fg hover:bg-surface-2 rounded-lg transition"
         aria-label="Notifications"
       >
         <Bell size={20} />
@@ -75,9 +75,9 @@ export default function NotificationsBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-slate-200 z-50 overflow-hidden">
-          <div className="px-4 py-3 border-b border-slate-100">
-            <p className="text-sm font-semibold text-slate-900">Notifications</p>
+        <div className="absolute right-0 mt-2 w-80 bg-surface rounded-xl shadow-lg border border-border z-50 overflow-hidden">
+          <div className="px-4 py-3 border-b border-border">
+            <p className="text-sm font-semibold text-fg">Notifications</p>
           </div>
 
           {/* Demo caution: automatic data removal. Dismissible, shown until acked. */}
@@ -101,18 +101,18 @@ export default function NotificationsBell() {
             </div>
           )}
 
-          <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+          <div className="max-h-80 overflow-y-auto divide-y divide-border">
             {loading ? (
-              <div className="flex items-center gap-2 px-4 py-5 text-sm text-slate-400">
+              <div className="flex items-center gap-2 px-4 py-5 text-sm text-fg-muted">
                 <Loader2 size={15} className="animate-spin" /> Loading…
               </div>
             ) : !items || items.length === 0 ? (
-              <p className="px-4 py-5 text-sm text-slate-400">Nothing new yet.</p>
+              <p className="px-4 py-5 text-sm text-fg-muted">Nothing new yet.</p>
             ) : (
               items.map((it) => (
                 <div key={it.id} className="px-4 py-3">
-                  <p className="text-sm text-slate-800">{it.message || it.action}</p>
-                  <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-400">
+                  <p className="text-sm text-fg">{it.message || it.action}</p>
+                  <p className="mt-0.5 flex items-center gap-1 text-xs text-fg-muted">
                     <Clock size={11} /> {timeAgo(it.createdAt)}
                     {it.actor ? ` · ${it.actor}` : ""}
                   </p>
@@ -120,8 +120,8 @@ export default function NotificationsBell() {
               ))
             )}
           </div>
-          <div className="px-4 py-2.5 border-t border-slate-100">
-            <Link href="/dashboard" onClick={() => setOpen(false)} className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+          <div className="px-4 py-2.5 border-t border-border">
+            <Link href="/dashboard" onClick={() => setOpen(false)} className="text-sm font-semibold text-brand hover:text-brand-700">
               View all
             </Link>
           </div>

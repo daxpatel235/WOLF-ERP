@@ -38,7 +38,7 @@ export default function DemoNotice() {
     : {
         grad: "from-blue-600 to-indigo-600",
         ring: "ring-blue-100",
-        chip: "bg-blue-50 text-blue-600",
+        chip: "bg-blue-50 text-brand",
         Icon: Sparkles,
         cta: "Let's go",
       };
@@ -67,7 +67,7 @@ export default function DemoNotice() {
 
       {/* Card */}
       <div
-        className={`relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 transition-all duration-300 ${
+        className={`relative w-full max-w-md overflow-hidden rounded-2xl bg-surface shadow-2xl ring-1 ring-black/5 transition-all duration-300 ${
           show ? "translate-y-0 scale-100 opacity-100" : "translate-y-3 scale-95 opacity-0"
         }`}
       >
@@ -88,7 +88,7 @@ export default function DemoNotice() {
 
         {/* Floating icon */}
         <div className="-mt-8 flex justify-center">
-          <div className={`flex h-16 w-16 items-center justify-center rounded-full bg-white shadow-lg ring-4 ${theme.ring}`}>
+          <div className={`flex h-16 w-16 items-center justify-center rounded-full bg-surface shadow-lg ring-4 ${theme.ring}`}>
             <span className={`flex h-12 w-12 items-center justify-center rounded-full ${theme.chip}`}>
               <Icon size={24} />
             </span>
@@ -103,9 +103,9 @@ export default function DemoNotice() {
             </div>
           )}
 
-          <p className="text-sm leading-relaxed text-slate-600">{notice.message}</p>
+          <p className="text-sm leading-relaxed text-fg-muted">{notice.message}</p>
 
-          <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400">
+          <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-fg-muted">
             <ShieldCheck size={13} className="text-emerald-500" />
             Your login is always safe — only your workspace data resets.
           </div>

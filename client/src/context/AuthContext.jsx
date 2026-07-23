@@ -13,7 +13,8 @@ import {
   saveSessionContext,
   getStoredContext,
 } from "@/lib/utils";
-import { TOKEN_KEY } from "@/lib/constants";
+import { TOKEN_KEY, USER_KEY, CONTEXT_KEY } from "@/lib/constants";
+import { isDesktop, hydrateSession } from "@/lib/desktop";
 
 export const AuthContext = createContext(null);
 
@@ -37,66 +38,92 @@ export function AuthProvider({ children }) {
 
   // Hydrate from storage on mount, then verify the token with the server.
   useEffect(() => {
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY)
-        : null;
+    let cancelled = false;
 
-    // The session is cached on this device, but we honour the 15-day rule:
-    // no token, or one whose 15-day window has lapsed → wipe the stale cache
-    // (storage + cookie) and start cleanly logged out. Doing this BEFORE we
-    // trust the cached user prevents half-logged-in states (and the
-    // landing-page flash) from an old session lingering in storage.
-    if (!token || isTokenExpired(token)) {
-      if (token) clearSession();
-      setLoading(false);
-      return;
-    }
+    // In the desktop app the session of record lives on disk, because the live
+    // UI and the bundled offline copy are different origins with separate
+    // localStorage. Pull it into this origin before reading any of it —
+    // otherwise the first launch after switching between them looks like a
+    // logout despite a perfectly good session sitting in AppData.
+    const ready = isDesktop()
+      ? hydrateSession([TOKEN_KEY, USER_KEY, CONTEXT_KEY])
+      : Promise.resolve(false);
 
-    const stored = getStoredUser();
-    if (stored) {
-      setUser(stored);
-      // Restore the cached workspace + capabilities in the SAME pass as the
-      // user. Without this the dashboard renders with permissions still null,
-      // and `isOwner`/`can()` report false — so the owner's own screens tell
-      // them they lack access until /me lands (or forever, if it fails).
-      const storedContext = getStoredContext();
-      if (storedContext) {
-        setOrganization(storedContext.organization);
-        setPermissions(storedContext.permissions);
+    ready.then(() => {
+      if (!cancelled) hydrate();
+    });
+
+    return () => {
+      cancelled = true;
+    };
+
+    function hydrate() {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY)
+          : null;
+
+      // The session is cached on this device, but we honour the 15-day rule:
+      // no token, or one whose 15-day window has lapsed → wipe the stale cache
+      // (storage + cookie) and start cleanly logged out. Doing this BEFORE we
+      // trust the cached user prevents half-logged-in states (and the
+      // landing-page flash) from an old session lingering in storage.
+      if (!token || isTokenExpired(token)) {
+        if (token) clearSession();
+        setLoading(false);
+        return;
       }
-      // Refresh the middleware cookie (sliding 15-day window) so the edge
-      // redirect keeps working for active users and backfills older sessions.
-      const remembered =
-        typeof window !== "undefined" && !!localStorage.getItem(TOKEN_KEY);
-      setAuthCookie(stored, remembered);
-      // Render immediately from cache; verify in the background (fast load).
-      setLoading(false);
-    }
 
-    authApi
-      .me()
-      .then((res) => {
-        setUser(res.user);
-        setOrganization(res.organization || null);
-        setPermissions(res.permissions || {});
-        saveSessionContext(res.organization || null, res.permissions || {});
-      })
-      .catch((err) => {
-        // Only drop the session when the server actively rejects the token
-        // (401 invalid/expired, 403 inactive account). A network failure
-        // (status 0) or a server cold-start/5xx — common on free-tier hosting
-        // that sleeps when idle — must NOT wipe a valid "remember me" session.
-        // Keep the hydrated user; the next authenticated request will retry.
-        if (err?.status === 401 || err?.status === 403) {
-          clearSession();
-          clearFetchCache();
-          setUser(null);
-          setOrganization(null);
-          setPermissions(null);
+      const stored = getStoredUser();
+      if (stored) {
+        setUser(stored);
+        // Restore the cached workspace + capabilities in the SAME pass as the
+        // user. Without this the dashboard renders with permissions still null,
+        // and `isOwner`/`can()` report false — so the owner's own screens tell
+        // them they lack access until /me lands (or forever, if it fails).
+        const storedContext = getStoredContext();
+        if (storedContext) {
+          setOrganization(storedContext.organization);
+          setPermissions(storedContext.permissions);
         }
-      })
-      .finally(() => setLoading(false));
+        // Refresh the middleware cookie (sliding 15-day window) so the edge
+        // redirect keeps working for active users and backfills older sessions.
+        const remembered =
+          typeof window !== "undefined" && !!localStorage.getItem(TOKEN_KEY);
+        setAuthCookie(stored, remembered);
+        // Render immediately from cache; verify in the background (fast load).
+        setLoading(false);
+      }
+
+      authApi
+        .me()
+        .then((res) => {
+          if (cancelled) return;
+          setUser(res.user);
+          setOrganization(res.organization || null);
+          setPermissions(res.permissions || {});
+          saveSessionContext(res.organization || null, res.permissions || {});
+        })
+        .catch((err) => {
+          // Only drop the session when the server actively rejects the token
+          // (401 invalid/expired, 403 inactive account). A network failure
+          // (status 0) or a server cold-start/5xx — common on free-tier hosting
+          // that sleeps when idle — must NOT wipe a valid "remember me" session.
+          // Keep the hydrated user; the next authenticated request will retry.
+          //
+          // Offline in the desktop app this rarely fires at all: /me is served
+          // from the snapshot, so the app opens signed in with the workspace as
+          // it was last seen.
+          if (err?.status === 401 || err?.status === 403) {
+            clearSession();
+            clearFetchCache();
+            setUser(null);
+            setOrganization(null);
+            setPermissions(null);
+          }
+        })
+        .finally(() => setLoading(false));
+    }
   }, []);
 
   // Adopt the workspace context the server returns alongside the user.

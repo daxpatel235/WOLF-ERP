@@ -34,7 +34,7 @@ export default function TermsPage() {
           is provided for evaluation and educational purposes only. There is no service-level
           agreement, no guaranteed availability, and no commitment to preserve your data —
           inactive workspaces are automatically wiped after 30 days (see the{" "}
-          <Link href="/privacy" className="font-medium text-blue-600 hover:text-blue-700">
+          <Link href="/privacy" className="font-medium text-brand hover:text-brand-700">
             Privacy Policy
           </Link>
           ).
@@ -142,11 +142,11 @@ export default function TermsPage() {
       <Section n="13" title="Contact">
         <p>
           Questions about these Terms? Email{" "}
-          <a href="mailto:support@wolferp.in" className="font-medium text-blue-600 hover:text-blue-700">
+          <a href="mailto:support@wolferp.in" className="font-medium text-brand hover:text-brand-700">
             support@wolferp.in
           </a>
           . See also our{" "}
-          <Link href="/privacy" className="font-medium text-blue-600 hover:text-blue-700">
+          <Link href="/privacy" className="font-medium text-brand hover:text-brand-700">
             Privacy Policy
           </Link>
           .

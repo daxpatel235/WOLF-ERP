@@ -64,7 +64,7 @@ export default function AcceptInvitePage() {
 
   if (checking) {
     return (
-      <div className="flex items-center justify-center gap-2 py-10 text-slate-500">
+      <div className="flex items-center justify-center gap-2 py-10 text-fg-muted">
         <Loader2 size={20} className="animate-spin" /> Checking your invitation…
       </div>
     );
@@ -76,10 +76,10 @@ export default function AcceptInvitePage() {
         <div className="w-14 h-14 mx-auto rounded-full bg-red-50 flex items-center justify-center mb-5">
           <AlertCircle size={28} className="text-red-500" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-900">Invitation not valid</h2>
-        <p className="text-slate-500 mt-2">{invalid}</p>
-        <p className="text-sm text-slate-400 mt-2">Ask your workspace owner to send a new invite.</p>
-        <Link href="/login" className="inline-block text-sm font-semibold text-blue-600 hover:text-blue-700 mt-6">
+        <h2 className="text-2xl font-bold text-fg">Invitation not valid</h2>
+        <p className="text-fg-muted mt-2">{invalid}</p>
+        <p className="text-sm text-fg-muted mt-2">Ask your workspace owner to send a new invite.</p>
+        <Link href="/login" className="inline-block text-sm font-semibold text-brand hover:text-brand-700 mt-6">
           Back to sign in
         </Link>
       </div>
@@ -89,17 +89,17 @@ export default function AcceptInvitePage() {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">Join {invite.organization}</h2>
-        <p className="text-slate-500 mt-1">Create your account to start collaborating.</p>
+        <h2 className="text-2xl font-bold text-fg">Join {invite.organization}</h2>
+        <p className="text-fg-muted mt-1">Create your account to start collaborating.</p>
       </div>
 
       {/* Invitation summary */}
-      <div className="flex items-start gap-2.5 p-3 mb-6 text-xs bg-blue-50 border border-blue-100 rounded-lg text-slate-600">
+      <div className="flex items-start gap-2.5 p-3 mb-6 text-xs bg-blue-50 border border-blue-100 rounded-lg text-fg-muted">
         <Building2 size={15} className="mt-0.5 shrink-0 text-blue-500" />
         <p className="leading-relaxed">
-          You've been invited to <span className="font-semibold text-slate-800">{invite.organization}</span> as
-          a <span className="font-semibold text-slate-800 capitalize">{invite.role}</span>.
-          <span className="flex items-center gap-1 mt-1 text-slate-500">
+          You've been invited to <span className="font-semibold text-fg">{invite.organization}</span> as
+          a <span className="font-semibold text-fg capitalize">{invite.role}</span>.
+          <span className="flex items-center gap-1 mt-1 text-fg-muted">
             <Mail size={12} /> {invite.email}
           </span>
         </p>
@@ -114,33 +114,33 @@ export default function AcceptInvitePage() {
 
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Full name</label>
+          <label className="block text-sm font-medium text-fg mb-1.5">Full name</label>
           <div className="relative">
-            <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted" />
             <input
               value={form.name}
               onChange={(e) => { setForm({ ...form, name: e.target.value }); setError(""); }}
               placeholder="Jane Cooper"
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-100 transition"
+              className="w-full pl-10 pr-4 py-2.5 bg-surface border border-border rounded-lg text-sm placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-100 transition"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+          <label className="block text-sm font-medium text-fg mb-1.5">Password</label>
           <div className="relative">
-            <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted" />
             <input
               type={showPassword ? "text" : "password"}
               value={form.password}
               onChange={(e) => { setForm({ ...form, password: e.target.value }); setError(""); }}
               placeholder="Create a strong password"
-              className="w-full pl-10 pr-11 py-2.5 bg-white border border-slate-200 rounded-lg text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-100 transition"
+              className="w-full pl-10 pr-11 py-2.5 bg-surface border border-border rounded-lg text-sm placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-100 transition"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-muted hover:text-fg-muted"
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -148,15 +148,15 @@ export default function AcceptInvitePage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirm password</label>
+          <label className="block text-sm font-medium text-fg mb-1.5">Confirm password</label>
           <div className="relative">
-            <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted" />
             <input
               type={showPassword ? "text" : "password"}
               value={form.confirm}
               onChange={(e) => { setForm({ ...form, confirm: e.target.value }); setError(""); }}
               placeholder="Re-enter your password"
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-100 transition"
+              className="w-full pl-10 pr-4 py-2.5 bg-surface border border-border rounded-lg text-sm placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-100 transition"
             />
           </div>
         </div>
@@ -176,9 +176,9 @@ export default function AcceptInvitePage() {
         </button>
       </form>
 
-      <p className="text-center text-sm text-slate-500 mt-6">
+      <p className="text-center text-sm text-fg-muted mt-6">
         Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700">
+        <Link href="/login" className="font-semibold text-brand hover:text-brand-700">
           Sign in
         </Link>
       </p>

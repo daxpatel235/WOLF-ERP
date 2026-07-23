@@ -215,7 +215,7 @@ export default function TeamChatPage() {
   // on a not-yet-known answer shows the owner a denial for their own workspace.
   if (!permissionsKnown) {
     return (
-      <div className="flex items-center gap-2 py-10 text-slate-500">
+      <div className="flex items-center gap-2 py-10 text-fg-muted">
         <Loader2 size={18} className="animate-spin" /> Loading chat…
       </div>
     );
@@ -235,7 +235,7 @@ export default function TeamChatPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 py-10 text-slate-500">
+      <div className="flex items-center gap-2 py-10 text-fg-muted">
         <Loader2 size={18} className="animate-spin" /> Loading chat…
       </div>
     );
@@ -254,34 +254,34 @@ export default function TeamChatPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-4">
         {/* Channels */}
         <Card className="p-3 h-fit">
-          <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Channels</p>
+          <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wider text-fg-muted">Channels</p>
           <div className="mt-1 space-y-0.5">
             {channels.map((c) => (
               <button
                 key={c.id}
                 onClick={() => setActiveId(c.id)}
                 className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium transition ${
-                  c.id === activeId ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50"
+                  c.id === activeId ? "bg-blue-50 text-brand-700" : "text-fg-muted hover:bg-surface-2"
                 }`}
               >
-                <Hash size={14} className={c.id === activeId ? "text-blue-500" : "text-slate-400"} />
+                <Hash size={14} className={c.id === activeId ? "text-blue-500" : "text-fg-muted"} />
                 <span className="truncate">{c.name}</span>
               </button>
             ))}
           </div>
 
-          <form onSubmit={createChannel} className="mt-3 flex items-center gap-1.5 border-t border-slate-100 pt-3">
+          <form onSubmit={createChannel} className="mt-3 flex items-center gap-1.5 border-t border-border pt-3">
             <input
               value={newChannel}
               onChange={(e) => setNewChannel(e.target.value)}
               placeholder="New channel"
-              className="w-full min-w-0 rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+              className="w-full min-w-0 rounded-lg border border-border px-2.5 py-1.5 text-sm placeholder:text-fg-muted focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
             />
             <button
               type="submit"
               disabled={creating || !newChannel.trim()}
               aria-label="Create channel"
-              className="shrink-0 rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 disabled:opacity-50"
+              className="shrink-0 rounded-lg p-2 text-fg-muted transition hover:bg-surface-2 hover:text-fg disabled:opacity-50"
             >
               {creating ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
             </button>
@@ -290,19 +290,19 @@ export default function TeamChatPage() {
 
         {/* Thread */}
         <Card className="flex h-[70vh] flex-col overflow-hidden">
-          <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3.5">
-            <Hash size={16} className="text-slate-400" />
+          <div className="flex items-center gap-2 border-b border-border px-5 py-3.5">
+            <Hash size={16} className="text-fg-muted" />
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-slate-900">{active?.name || "—"}</p>
+              <p className="truncate text-sm font-bold text-fg">{active?.name || "—"}</p>
               {active?.description && (
-                <p className="truncate text-xs text-slate-400">{active.description}</p>
+                <p className="truncate text-xs text-fg-muted">{active.description}</p>
               )}
             </div>
           </div>
 
           <div ref={scrollRef} onScroll={onScroll} className="flex-1 space-y-1 overflow-y-auto px-5 py-4">
             {loadingMessages ? (
-              <div className="flex items-center gap-2 py-6 text-sm text-slate-400">
+              <div className="flex items-center gap-2 py-6 text-sm text-fg-muted">
                 <Loader2 size={15} className="animate-spin" /> Loading messages…
               </div>
             ) : messages.length === 0 ? (
@@ -328,15 +328,15 @@ export default function TeamChatPage() {
                     <div className="min-w-0 flex-1">
                       {!grouped && (
                         <p className="flex items-baseline gap-2">
-                          <span className="text-sm font-semibold text-slate-900">
+                          <span className="text-sm font-semibold text-fg">
                             {mine ? "You" : m.senderName}
                           </span>
-                          <span className="text-[11px] text-slate-400">{timeOf(m.createdAt)}</span>
+                          <span className="text-[11px] text-fg-muted">{timeOf(m.createdAt)}</span>
                         </p>
                       )}
                       <p
                         className={`whitespace-pre-wrap break-words text-sm ${
-                          m.pending ? "text-slate-400" : "text-slate-700"
+                          m.pending ? "text-fg-muted" : "text-fg"
                         }`}
                       >
                         {m.body}
@@ -348,14 +348,14 @@ export default function TeamChatPage() {
             )}
           </div>
 
-          <form onSubmit={send} className="flex items-center gap-2 border-t border-slate-100 px-4 py-3">
+          <form onSubmit={send} className="flex items-center gap-2 border-t border-border px-4 py-3">
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder={active ? `Message #${active.name}` : "Select a channel"}
               disabled={!activeId}
               maxLength={2000}
-              className="w-full rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
+              className="w-full rounded-lg border border-border px-3.5 py-2.5 text-sm placeholder:text-fg-muted focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-surface-2"
             />
             <button
               type="submit"

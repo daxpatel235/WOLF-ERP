@@ -1,6 +1,7 @@
 // Misc client helpers: session storage + small utilities.
 
 import { TOKEN_KEY, USER_KEY, CONTEXT_KEY, ROLE_HOME } from "./constants";
+import { isDesktop, persistSession, cacheClear } from "./desktop";
 
 // Cookie read by middleware.js to redirect signed-in users away from public
 // pages (/, /login, /register) at the EDGE — before any HTML paints, so there's
@@ -34,6 +35,18 @@ export function saveSession(token, user, remember = false) {
   other.removeItem(TOKEN_KEY);
   other.removeItem(USER_KEY);
   setAuthCookie(user, remember);
+
+  // Desktop only: mirror to the shell so the session survives the app switching
+  // between the live UI and the bundled offline copy, which are separate
+  // origins with separate storage.
+  //
+  // Only when "remember me" was chosen. Without it the user asked for a session
+  // that dies with the window, and writing it to disk would quietly override
+  // that — a sessionStorage token must not outlive the process.
+  if (remember) {
+    persistSession(TOKEN_KEY, token);
+    persistSession(USER_KEY, JSON.stringify(user));
+  }
 }
 
 export function clearSession() {
@@ -44,6 +57,14 @@ export function clearSession() {
     s.removeItem(CONTEXT_KEY);
   });
   clearAuthCookie();
+
+  // Clear the shell's copy too, and drop the offline snapshot with it: those
+  // files are one account's data, and the next person to sign in on this
+  // machine must not be able to read them by pulling the network cable.
+  persistSession(TOKEN_KEY, null);
+  persistSession(USER_KEY, null);
+  persistSession(CONTEXT_KEY, null);
+  if (isDesktop()) void cacheClear();
 }
 
 // Cache the workspace + capabilities the server reported for this member.
@@ -54,8 +75,14 @@ export function clearSession() {
 export function saveSessionContext(organization, permissions) {
   if (typeof window === "undefined") return;
   // Follow the token: whichever store holds the session owns the context too.
-  const store = localStorage.getItem(TOKEN_KEY) ? localStorage : sessionStorage;
-  store.setItem(CONTEXT_KEY, JSON.stringify({ organization, permissions }));
+  const remembered = Boolean(localStorage.getItem(TOKEN_KEY));
+  const store = remembered ? localStorage : sessionStorage;
+  const payload = JSON.stringify({ organization, permissions });
+  store.setItem(CONTEXT_KEY, payload);
+  // Mirror alongside the token it follows, so an offline launch knows what this
+  // member is allowed to do on the first render instead of rendering as though
+  // they have no permissions at all.
+  if (remembered) persistSession(CONTEXT_KEY, payload);
 }
 
 export function getStoredContext() {

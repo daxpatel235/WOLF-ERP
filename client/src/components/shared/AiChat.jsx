@@ -48,7 +48,7 @@ const STORAGE_KEY = "wolf_ai_chat";
 function renderInline(text) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     /^\*\*[^*]+\*\*$/.test(part) ? (
-      <strong key={i} className="font-semibold text-slate-900">
+      <strong key={i} className="font-semibold text-fg">
         {part.slice(2, -2)}
       </strong>
     ) : (
@@ -104,7 +104,7 @@ function SourceChips({ sources, onNavigate }) {
             type="button"
             onClick={() => onNavigate(meta.href(s.id))}
             title={s.title}
-            className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-white px-2 py-0.5 text-[11px] font-medium text-violet-700 transition hover:border-violet-300 hover:bg-violet-50"
+            className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-surface px-2 py-0.5 text-[11px] font-medium text-violet-700 transition hover:border-violet-300 hover:bg-violet-50"
           >
             <Icon size={11} />
             {s.id}
@@ -127,7 +127,7 @@ function ActionCard({ action, status, busy, onConfirm, onCancel }) {
 
   if (status === "cancelled") {
     return (
-      <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] text-slate-500">
+      <div className="mt-2 rounded-xl border border-border bg-surface-2 px-3 py-2 text-[12px] text-fg-muted">
         Cancelled — nothing was saved.
       </div>
     );
@@ -144,7 +144,7 @@ function ActionCard({ action, status, busy, onConfirm, onCancel }) {
       <div className="flex items-center gap-1.5 text-[12px] font-semibold text-violet-900">
         <Wand2 size={13} /> Action proposed
       </div>
-      <div className="mt-1.5 flex items-start gap-1.5 text-[12.5px] text-slate-700">
+      <div className="mt-1.5 flex items-start gap-1.5 text-[12.5px] text-fg">
         <Icon size={14} className="mt-0.5 flex-none text-violet-500" />
         <span>{action.summary}</span>
       </div>
@@ -162,7 +162,7 @@ function ActionCard({ action, status, busy, onConfirm, onCancel }) {
           type="button"
           onClick={onCancel}
           disabled={busy}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-medium text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+          className="rounded-lg border border-border bg-surface px-3 py-1.5 text-[12px] font-medium text-fg-muted transition hover:bg-surface-2 disabled:opacity-50"
         >
           Cancel
         </button>
@@ -180,7 +180,7 @@ function ActionResultLink({ result, onNavigate }) {
     <button
       type="button"
       onClick={() => onNavigate(result.href)}
-      className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-white px-3 py-1 text-[12px] font-semibold text-violet-700 transition hover:border-violet-300 hover:bg-violet-50"
+      className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-surface px-3 py-1 text-[12px] font-semibold text-violet-700 transition hover:border-violet-300 hover:bg-violet-50"
     >
       <Icon size={12} /> View {result.code}
       <ArrowRight size={12} />
@@ -360,10 +360,10 @@ export default function AiChat() {
 
           <div
             className={cn(
-              "fixed z-50 flex flex-col overflow-hidden bg-white shadow-2xl shadow-slate-900/20",
+              "fixed z-50 flex flex-col overflow-hidden bg-surface shadow-2xl shadow-slate-900/20",
               // mobile: bottom sheet · desktop: floating card
               "inset-x-0 bottom-0 h-[85vh] rounded-t-2xl",
-              "sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[640px] sm:max-h-[calc(100vh-2.5rem)] sm:w-[400px] sm:rounded-2xl sm:border sm:border-slate-200",
+              "sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[640px] sm:max-h-[calc(100vh-2.5rem)] sm:w-[400px] sm:rounded-2xl sm:border sm:border-border",
               "motion-safe:animate-chat-in"
             )}
           >
@@ -404,14 +404,14 @@ export default function AiChat() {
             </div>
 
             {/* ---- Messages ---- */}
-            <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto bg-slate-50/60 px-4 py-4">
+            <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto bg-surface-2/60 px-4 py-4">
               {messages.length === 0 && (
                 <div className="flex h-full flex-col items-center justify-center text-center">
                   <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-100 to-indigo-100 text-violet-600">
                     <Sparkles size={26} />
                   </span>
-                  <p className="text-sm font-semibold text-slate-800">Ask me anything</p>
-                  <p className="mt-1 max-w-[16rem] text-xs text-slate-500">
+                  <p className="text-sm font-semibold text-fg">Ask me anything</p>
+                  <p className="mt-1 max-w-[16rem] text-xs text-fg-muted">
                     I answer from your live records — and can create RFQs or add vendors for you.
                   </p>
                   <div className="mt-5 grid w-full gap-2">
@@ -420,7 +420,7 @@ export default function AiChat() {
                         key={s}
                         type="button"
                         onClick={() => send(s)}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left text-[13px] font-medium text-slate-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-800"
+                        className="rounded-xl border border-border bg-surface px-3 py-2.5 text-left text-[13px] font-medium text-fg shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-800"
                       >
                         {s}
                       </button>
@@ -454,7 +454,7 @@ export default function AiChat() {
                           "rounded-2xl rounded-tl-md border px-3.5 py-2.5 text-[13px] leading-relaxed shadow-sm",
                           m.refused
                             ? "border-amber-200 bg-amber-50 text-amber-800"
-                            : "border-slate-200 bg-white text-slate-700"
+                            : "border-border bg-surface text-fg"
                         )}
                       >
                         <MessageBody text={m.content} />
@@ -482,7 +482,7 @@ export default function AiChat() {
                   <span className="mt-0.5 flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 text-white">
                     <Sparkles size={14} />
                   </span>
-                  <div className="rounded-2xl rounded-tl-md border border-slate-200 bg-white px-2 py-1 shadow-sm">
+                  <div className="rounded-2xl rounded-tl-md border border-border bg-surface px-2 py-1 shadow-sm">
                     <TypingDots />
                   </div>
                 </div>
@@ -496,8 +496,8 @@ export default function AiChat() {
             </div>
 
             {/* ---- Composer ---- */}
-            <div className="border-t border-slate-200 bg-white p-3">
-              <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 transition focus-within:border-violet-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-violet-100">
+            <div className="border-t border-border bg-surface p-3">
+              <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface-2 px-3 py-2 transition focus-within:border-violet-400 focus-within:bg-surface focus-within:ring-2 focus-within:ring-violet-100">
                 <textarea
                   ref={inputRef}
                   rows={1}
@@ -505,7 +505,7 @@ export default function AiChat() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={onKeyDown}
                   placeholder="Ask about vendors, invoices, spend…"
-                  className="max-h-28 flex-1 resize-none bg-transparent py-1 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
+                  className="max-h-28 flex-1 resize-none bg-transparent py-1 text-sm text-fg placeholder:text-fg-muted focus:outline-none"
                 />
                 <button
                   type="button"
@@ -517,7 +517,7 @@ export default function AiChat() {
                   {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={15} />}
                 </button>
               </div>
-              <p className="mt-1.5 px-1 text-center text-[10px] text-slate-400">
+              <p className="mt-1.5 px-1 text-center text-[10px] text-fg-muted">
                 AI can make mistakes — verify important figures against the records.
               </p>
             </div>

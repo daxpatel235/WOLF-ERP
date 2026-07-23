@@ -118,13 +118,13 @@ export default function RegisterPage() {
   };
 
   const strength = passwordStrength();
-  const strengthColors = ["bg-slate-200", "bg-red-400", "bg-amber-400", "bg-amber-500", "bg-emerald-500"];
+  const strengthColors = ["bg-surface-2", "bg-red-400", "bg-amber-400", "bg-amber-500", "bg-emerald-500"];
   const strengthLabels = ["", "Weak", "Fair", "Good", "Strong"];
 
   // A session already exists — redirecting to the dashboard; hide the form.
   if (user) {
     return (
-      <div className="flex items-center justify-center gap-2 py-10 text-slate-500">
+      <div className="flex items-center justify-center gap-2 py-10 text-fg-muted">
         <Loader2 size={20} className="animate-spin" /> Taking you to your dashboard…
       </div>
     );
@@ -133,8 +133,8 @@ export default function RegisterPage() {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-900">Create your account</h2>
-        <p className="text-slate-500 mt-1">
+        <h2 className="text-2xl font-bold text-fg">Create your account</h2>
+        <p className="text-fg-muted mt-1">
           Join Wolf and bring order to your procurement.
         </p>
       </div>
@@ -153,17 +153,17 @@ export default function RegisterPage() {
         {/* Name + Organization */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label className="block text-sm font-medium text-fg mb-1.5">
               Full name
             </label>
             <div className="relative">
-              <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted" />
               <input
                 value={form.name}
                 onChange={(e) => handleChange("name", e.target.value)}
                 placeholder="Jane Cooper"
-                className={`w-full pl-10 pr-3 py-2.5 bg-white border rounded-lg text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 transition ${
-                  errors.name ? "border-red-300 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-100"
+                className={`w-full pl-10 pr-3 py-2.5 bg-surface border rounded-lg text-sm placeholder:text-fg-muted focus:outline-none focus:ring-2 transition ${
+                  errors.name ? "border-red-300 focus:ring-red-100" : "border-border focus:border-blue-500 focus:ring-blue-100"
                 }`}
               />
             </div>
@@ -171,17 +171,17 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label className="block text-sm font-medium text-fg mb-1.5">
               Organization
             </label>
             <div className="relative">
-              <Building2 size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Building2 size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted" />
               <input
                 value={form.organization}
                 onChange={(e) => handleChange("organization", e.target.value)}
                 placeholder="Acme Corp"
-                className={`w-full pl-10 pr-3 py-2.5 bg-white border rounded-lg text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 transition ${
-                  errors.organization ? "border-red-300 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-100"
+                className={`w-full pl-10 pr-3 py-2.5 bg-surface border rounded-lg text-sm placeholder:text-fg-muted focus:outline-none focus:ring-2 transition ${
+                  errors.organization ? "border-red-300 focus:ring-red-100" : "border-border focus:border-blue-500 focus:ring-blue-100"
                 }`}
               />
             </div>
@@ -191,18 +191,18 @@ export default function RegisterPage() {
 
         {/* Email */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label className="block text-sm font-medium text-fg mb-1.5">
             Email address
           </label>
           <div className="relative">
-            <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted" />
             <input
               type="email"
               value={form.email}
               onChange={(e) => handleChange("email", e.target.value)}
               placeholder="you@company.com"
-              className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-lg text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 transition ${
-                errors.email ? "border-red-300 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-100"
+              className={`w-full pl-10 pr-4 py-2.5 bg-surface border rounded-lg text-sm placeholder:text-fg-muted focus:outline-none focus:ring-2 transition ${
+                errors.email ? "border-red-300 focus:ring-red-100" : "border-border focus:border-blue-500 focus:ring-blue-100"
               }`}
             />
           </div>
@@ -211,24 +211,24 @@ export default function RegisterPage() {
 
         {/* Password */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label className="block text-sm font-medium text-fg mb-1.5">
             Password
           </label>
           <div className="relative">
-            <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted" />
             <input
               type={showPassword ? "text" : "password"}
               value={form.password}
               onChange={(e) => handleChange("password", e.target.value)}
               placeholder="Create a strong password"
-              className={`w-full pl-10 pr-11 py-2.5 bg-white border rounded-lg text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 transition ${
-                errors.password ? "border-red-300 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-100"
+              className={`w-full pl-10 pr-11 py-2.5 bg-surface border rounded-lg text-sm placeholder:text-fg-muted focus:outline-none focus:ring-2 transition ${
+                errors.password ? "border-red-300 focus:ring-red-100" : "border-border focus:border-blue-500 focus:ring-blue-100"
               }`}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-fg-muted hover:text-fg-muted"
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -241,12 +241,12 @@ export default function RegisterPage() {
                   <div
                     key={i}
                     className={`h-1.5 flex-1 rounded-full transition ${
-                      i <= strength ? strengthColors[strength] : "bg-slate-200"
+                      i <= strength ? strengthColors[strength] : "bg-surface-2"
                     }`}
                   />
                 ))}
               </div>
-              <span className="text-xs text-slate-500 w-12">{strengthLabels[strength]}</span>
+              <span className="text-xs text-fg-muted w-12">{strengthLabels[strength]}</span>
             </div>
           )}
           {errors.password && <p className="text-xs text-red-600 mt-1">{errors.password}</p>}
@@ -254,18 +254,18 @@ export default function RegisterPage() {
 
         {/* Confirm password */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label className="block text-sm font-medium text-fg mb-1.5">
             Confirm password
           </label>
           <div className="relative">
-            <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted" />
             <input
               type={showPassword ? "text" : "password"}
               value={form.confirmPassword}
               onChange={(e) => handleChange("confirmPassword", e.target.value)}
               placeholder="Re-enter your password"
-              className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-lg text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 transition ${
-                errors.confirmPassword ? "border-red-300 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-100"
+              className={`w-full pl-10 pr-4 py-2.5 bg-surface border rounded-lg text-sm placeholder:text-fg-muted focus:outline-none focus:ring-2 transition ${
+                errors.confirmPassword ? "border-red-300 focus:ring-red-100" : "border-border focus:border-blue-500 focus:ring-blue-100"
               }`}
             />
           </div>
@@ -274,7 +274,7 @@ export default function RegisterPage() {
 
         {/* Role selector — role-based authentication */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
+          <label className="block text-sm font-medium text-fg mb-2">
             Select your role
           </label>
           <div className="grid grid-cols-2 gap-2">
@@ -288,7 +288,7 @@ export default function RegisterPage() {
                   className={`relative text-left p-3 rounded-lg border transition ${
                     selected
                       ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100"
-                      : "border-slate-200 bg-white hover:border-blue-200"
+                      : "border-border bg-surface hover:border-blue-200"
                   }`}
                 >
                   {selected && (
@@ -296,8 +296,8 @@ export default function RegisterPage() {
                       <Check size={11} className="text-white" />
                     </span>
                   )}
-                  <p className="text-sm font-semibold text-slate-900">{role.label}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{role.desc}</p>
+                  <p className="text-sm font-semibold text-fg">{role.label}</p>
+                  <p className="text-xs text-fg-muted mt-0.5">{role.desc}</p>
                 </button>
               );
             })}
@@ -311,15 +311,15 @@ export default function RegisterPage() {
               type="checkbox"
               checked={form.agree}
               onChange={(e) => handleChange("agree", e.target.checked)}
-              className="w-4 h-4 mt-0.5 rounded border-slate-300 text-blue-600 focus:ring-blue-200"
+              className="w-4 h-4 mt-0.5 rounded border-border text-brand focus:ring-blue-200"
             />
-            <span className="text-sm text-slate-600">
+            <span className="text-sm text-fg-muted">
               I agree to Wolf's{" "}
-              <Link href="/terms" target="_blank" className="text-blue-600 font-medium hover:text-blue-700">
+              <Link href="/terms" target="_blank" className="text-brand font-medium hover:text-brand-700">
                 Terms
               </Link>{" "}
               and{" "}
-              <Link href="/privacy" target="_blank" className="text-blue-600 font-medium hover:text-blue-700">
+              <Link href="/privacy" target="_blank" className="text-brand font-medium hover:text-brand-700">
                 Privacy Policy
               </Link>
               .
@@ -344,9 +344,9 @@ export default function RegisterPage() {
         </button>
       </form>
 
-      <p className="text-center text-sm text-slate-500 mt-6">
+      <p className="text-center text-sm text-fg-muted mt-6">
         Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-blue-600 hover:text-blue-700">
+        <Link href="/login" className="font-semibold text-brand hover:text-brand-700">
           Sign in
         </Link>
       </p>

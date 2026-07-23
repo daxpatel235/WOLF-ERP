@@ -16,11 +16,11 @@ function Toggle({ checked, disabled, onChange }) {
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition ${
-        checked ? "bg-blue-600" : "bg-slate-200"
+        checked ? "bg-blue-600" : "bg-surface-2"
       } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
     >
       <span
-        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition ${
+        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-surface shadow transition ${
           checked ? "translate-x-[18px]" : "translate-x-1"
         }`}
       />
@@ -76,7 +76,7 @@ export default function OrganizationSettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 py-10 text-slate-500">
+      <div className="flex items-center gap-2 py-10 text-fg-muted">
         <Loader2 size={18} className="animate-spin" /> Loading settings…
       </div>
     );
@@ -110,8 +110,8 @@ export default function OrganizationSettingsPage() {
           may do — otherwise the owner is told "you can't" while their
           capabilities are still loading. */}
       {permissionsKnown && !canManage && (
-        <div className="flex items-start gap-2.5 p-3 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-500">
-          <Lock size={16} className="mt-0.5 shrink-0 text-slate-400" />
+        <div className="flex items-start gap-2.5 p-3 text-sm bg-surface-2 border border-border rounded-lg text-fg-muted">
+          <Lock size={16} className="mt-0.5 shrink-0 text-fg-muted" />
           <p>Only the workspace owner (or a member with &ldquo;Workspace settings&rdquo;) can change these.</p>
         </div>
       )}
@@ -119,28 +119,28 @@ export default function OrganizationSettingsPage() {
       {/* Identity */}
       <Card className="p-6">
         <div className="flex items-center gap-2 mb-1">
-          <Building2 size={18} className="text-blue-600" />
-          <h2 className="text-base font-bold text-slate-900">Workspace</h2>
+          <Building2 size={18} className="text-brand" />
+          <h2 className="text-base font-bold text-fg">Workspace</h2>
         </div>
-        <p className="text-sm text-slate-500 mb-4">The name your team sees across the app.</p>
+        <p className="text-sm text-fg-muted mb-4">The name your team sees across the app.</p>
         <input
           value={name}
           disabled={!canManage}
           onChange={(e) => { setName(e.target.value); setSaved(""); }}
-          className="w-full max-w-md px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-100 transition disabled:bg-slate-50 disabled:text-slate-500"
+          className="w-full max-w-md px-4 py-2.5 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-100 transition disabled:bg-surface-2 disabled:text-fg-muted"
         />
       </Card>
 
       {/* Visibility */}
       <Card className="p-6">
         <div className="flex items-center gap-2 mb-1">
-          <Eye size={18} className="text-blue-600" />
-          <h2 className="text-base font-bold text-slate-900">Member directory</h2>
+          <Eye size={18} className="text-brand" />
+          <h2 className="text-base font-bold text-fg">Member directory</h2>
         </div>
         <div className="flex items-start justify-between gap-6 mt-4">
           <div>
-            <p className="text-sm font-medium text-slate-800">Visible to all members</p>
-            <p className="text-xs text-slate-400 mt-0.5 max-w-lg">
+            <p className="text-sm font-medium text-fg">Visible to all members</p>
+            <p className="text-xs text-fg-muted mt-0.5 max-w-lg">
               When on, every member can see the workspace's member list with names and email addresses.
               When off, only the owner and members who can manage the team can see it.
             </p>
@@ -156,10 +156,10 @@ export default function OrganizationSettingsPage() {
       {/* Default permissions for new members */}
       <Card className="p-6">
         <div className="flex items-center gap-2 mb-1">
-          <ShieldCheck size={18} className="text-blue-600" />
-          <h2 className="text-base font-bold text-slate-900">Default permissions for new members</h2>
+          <ShieldCheck size={18} className="text-brand" />
+          <h2 className="text-base font-bold text-fg">Default permissions for new members</h2>
         </div>
-        <p className="text-sm text-slate-500 mb-2">
+        <p className="text-sm text-fg-muted mb-2">
           What someone can do the moment they accept an invitation. You can always tune an individual
           later under Permissions. Access starts restricted until you open it up.
         </p>
@@ -170,8 +170,8 @@ export default function OrganizationSettingsPage() {
             return (
               <div key={key} className="flex items-start justify-between gap-3 py-2.5">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-800">{meta.label}</p>
-                  <p className="text-xs text-slate-400">{meta.hint}</p>
+                  <p className="text-sm font-medium text-fg">{meta.label}</p>
+                  <p className="text-xs text-fg-muted">{meta.hint}</p>
                 </div>
                 <Toggle
                   checked={defaults[key] === true}
@@ -194,7 +194,7 @@ export default function OrganizationSettingsPage() {
             {saving && <Loader2 size={16} className="animate-spin" />}
             Save changes
           </button>
-          {dirty && <span className="text-xs text-slate-400">You have unsaved changes</span>}
+          {dirty && <span className="text-xs text-fg-muted">You have unsaved changes</span>}
         </div>
       )}
     </div>

@@ -9,6 +9,7 @@ import { useFetch } from "@/hooks/useFetch";
 import { COMPANY } from "@/lib/constants";
 import { formatINR, formatDate } from "@/lib/format";
 import { downloadInvoicePdf } from "@/lib/pdf";
+import { useToast } from "@/components/ui/Toast";
 
 const GST_RATE = 0.18;
 
@@ -17,13 +18,14 @@ export default function InvoicePrintPage() {
   const { data, loading, error } = useFetch(() => invoicesApi.get(id), [id], { key: "invoice" });
   const inv = data?.data;
   const [pdfBusy, setPdfBusy] = useState(false);
+  const toast = useToast();
 
   const downloadPdf = async () => {
     setPdfBusy(true);
     try {
       await downloadInvoicePdf(inv, COMPANY, `${inv.id}.pdf`);
     } catch (e) {
-      alert("Could not generate the PDF: " + (e?.message || e));
+      toast.error("Could not generate the PDF: " + (e?.message || e));
     } finally {
       setPdfBusy(false);
     }

@@ -7,6 +7,9 @@ import { approvalsApi } from "@/lib/api";
 import { useFetch } from "@/hooks/useFetch";
 import { formatINR, formatDate, priorityClass } from "@/lib/format";
 import { PageHeader, Card, EmptyState } from "@/components/ui/kit";
+import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Modal";
+import { RoleGate } from "@/components/shared/RoleGate";
 
 const TYPE_ICON = {
   "Purchase Order": ShoppingCart,
@@ -23,23 +26,40 @@ const hrefFor = (a) => {
 export default function ApprovalsPage() {
   const { data, loading, error, refetch } = useFetch(() => approvalsApi.list(), [], { key: "approvals" });
   const [busyId, setBusyId] = useState(null);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const pending = data?.pending || [];
   const done = data?.decided || [];
 
   const decide = async (id, decision) => {
+    // Rejecting sends the request back to the requester, so it gets a
+    // confirmation step; approving is the routine path and doesn't.
+    const rejecting = decision === "Rejected";
+    if (rejecting) {
+      const ok = await confirm({
+        title: "Reject this request?",
+        message: "The requester will be notified and the item returns to them for revision.",
+        confirmLabel: "Reject",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+
     setBusyId(id);
     try {
       await approvalsApi.decide(id, { decision });
       await refetch();
+      toast.success(rejecting ? "Request rejected." : "Request approved.");
     } catch (e) {
-      alert(e.message || "Could not record decision.");
+      toast.error(e.message || "Could not record decision.");
     } finally {
       setBusyId(null);
     }
   };
 
   return (
+    <RoleGate permission="canApprove" title="Approvals are restricted">
     <div className="max-w-5xl mx-auto">
       <PageHeader
         title="Approvals"
@@ -47,33 +67,33 @@ export default function ApprovalsPage() {
       />
 
       <Card>
-        <h2 className="text-base font-bold text-slate-900 px-6 py-4 border-b border-slate-100">Pending queue</h2>
+        <h2 className="text-base font-bold text-fg px-6 py-4 border-b border-border">Pending queue</h2>
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-slate-400"><Loader2 size={18} className="animate-spin" /> Loading approvals...</div>
+          <div className="flex items-center justify-center gap-2 py-16 text-fg-muted"><Loader2 size={18} className="animate-spin" /> Loading approvals...</div>
         ) : error ? (
           <EmptyState icon={AlertCircle} title="Couldn't load approvals" hint={error.message} />
         ) : pending.length === 0 ? (
           <EmptyState icon={CheckCircle2} title="All caught up!" hint="No approvals waiting on you." />
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-border">
             {pending.map((a) => {
               const Icon = TYPE_ICON[a.type] || FileText;
               const busy = busyId === a.id;
               return (
                 <div key={a.id} className="flex flex-col sm:flex-row sm:items-center gap-4 px-6 py-4">
-                  <span className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                  <span className="w-10 h-10 rounded-lg bg-blue-50 text-brand flex items-center justify-center shrink-0">
                     <Icon size={18} />
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <Link href={hrefFor(a)} className="text-sm font-semibold text-slate-900 hover:text-blue-600">{a.refId}</Link>
+                      <Link href={hrefFor(a)} className="text-sm font-semibold text-fg hover:text-brand">{a.refId}</Link>
                       <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${priorityClass(a.priority)}`}>{a.priority}</span>
                     </div>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-fg-muted mt-0.5">
                       {a.type} · {a.vendor && a.vendor !== "—" ? `${a.vendor} · ` : ""}by {a.requestedBy} · {formatDate(a.date)}
                     </p>
                   </div>
-                  {a.amount > 0 && <span className="text-sm font-bold text-slate-900">{formatINR(a.amount)}</span>}
+                  {a.amount > 0 && <span className="text-sm font-bold text-fg">{formatINR(a.amount)}</span>}
                   <div className="flex items-center gap-2">
                     <button onClick={() => decide(a.id, "Rejected")} disabled={busy}
                       className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 rounded-lg transition disabled:opacity-50">
@@ -93,13 +113,13 @@ export default function ApprovalsPage() {
 
       {done.length > 0 && (
         <Card className="mt-6">
-          <h2 className="text-base font-bold text-slate-900 px-6 py-4 border-b border-slate-100">Recently decided</h2>
-          <div className="divide-y divide-slate-100">
+          <h2 className="text-base font-bold text-fg px-6 py-4 border-b border-border">Recently decided</h2>
+          <div className="divide-y divide-border">
             {done.map((a) => (
               <div key={a.id} className="flex items-center justify-between px-6 py-3.5">
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">{a.refId}</p>
-                  <p className="text-xs text-slate-400">{a.type} · {a.vendor && a.vendor !== "—" ? a.vendor : a.requestedBy}</p>
+                  <p className="text-sm font-semibold text-fg">{a.refId}</p>
+                  <p className="text-xs text-fg-muted">{a.type} · {a.vendor && a.vendor !== "—" ? a.vendor : a.requestedBy}</p>
                 </div>
                 <span className={`inline-flex items-center gap-1.5 text-sm font-semibold ${a.status === "Approved" ? "text-emerald-600" : "text-red-600"}`}>
                   {a.status === "Approved" ? <Check size={16} /> : <X size={16} />} {a.status}
@@ -110,5 +130,6 @@ export default function ApprovalsPage() {
         </Card>
       )}
     </div>
+    </RoleGate>
   );
 }

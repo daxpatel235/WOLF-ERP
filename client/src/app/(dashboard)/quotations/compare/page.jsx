@@ -9,6 +9,8 @@ import { useFetch } from "@/hooks/useFetch";
 import { formatINR, cn } from "@/lib/format";
 import { PageHeader, Card, EmptyState } from "@/components/ui/kit";
 import { useAiEnabled, AiButton, AiPanel, AiThinking } from "@/components/ui/ai";
+import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Modal";
 
 function CompareInner() {
   const params = useSearchParams();
@@ -38,6 +40,8 @@ function CompareInner() {
   const itemNames = cmp?.itemNames || [];
   const summary = cmp?.summary || {};
   const [awarding, setAwarding] = useState(false);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   // --- AI award recommendation ---
   const aiEnabled = useAiEnabled();
@@ -52,19 +56,30 @@ function CompareInner() {
       setInsight(data.insight);
     } catch (e) {
       setInsight("");
-      alert(e.message || "Could not generate a recommendation.");
+      toast.error(e.message || "Could not generate a recommendation.");
     } finally {
       setInsightLoading(false);
     }
   };
 
   const award = async (quotationId) => {
+    const winner = vendors.find((v) => v.quotationId === quotationId || v.id === quotationId);
+    const ok = await confirm({
+      title: "Award this quotation?",
+      message: `${
+        winner?.vendor ? `${winner.vendor} wins this RFQ. ` : ""
+      }The remaining quotations will be closed and a draft purchase order created.`,
+      confirmLabel: "Award",
+    });
+    if (!ok) return;
+
     setAwarding(true);
     try {
       await quotationsApi.award(quotationId);
       await refetch();
+      toast.success("Quotation awarded — draft PO created.");
     } catch (e) {
-      alert(e.message || "Could not award quotation.");
+      toast.error(e.message || "Could not award quotation.");
     } finally {
       setAwarding(false);
     }
@@ -74,7 +89,7 @@ function CompareInner() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <Link href="/quotations" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-600 mb-4">
+      <Link href="/quotations" className="inline-flex items-center gap-2 text-sm font-medium text-fg-muted hover:text-brand mb-4">
         <ArrowLeft size={16} /> Back to quotations
       </Link>
 
@@ -82,41 +97,41 @@ function CompareInner() {
         <select
           value={rfqId}
           onChange={(e) => setRfqId(e.target.value)}
-          className="px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="px-3.5 py-2.5 bg-surface border border-border rounded-lg text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         >
           {comparableRfqIds.length === 0 && <option value="">No RFQs</option>}
           {comparableRfqIds.map((id) => <option key={id} value={id}>{id}</option>)}
         </select>
       </PageHeader>
 
-      {cmp?.rfq?.title && <p className="-mt-4 mb-6 text-sm text-slate-500">{cmp.rfq.title}</p>}
+      {cmp?.rfq?.title && <p className="-mt-4 mb-6 text-sm text-fg-muted">{cmp.rfq.title}</p>}
 
       {loading ? (
-        <Card><div className="flex items-center justify-center gap-2 py-16 text-slate-400"><Loader2 size={18} className="animate-spin" /> Loading comparison...</div></Card>
+        <Card><div className="flex items-center justify-center gap-2 py-16 text-fg-muted"><Loader2 size={18} className="animate-spin" /> Loading comparison...</div></Card>
       ) : vendors.length === 0 ? (
         <Card><EmptyState icon={GitCompare} title="No quotes to compare" /></Card>
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full text-sm min-w-[640px]">
             <thead>
-              <tr className="border-b border-slate-100">
-                <th className="px-5 py-4 text-left text-xs font-semibold text-slate-500 uppercase">Criteria</th>
+              <tr className="border-b border-border">
+                <th className="px-5 py-4 text-left text-xs font-semibold text-fg-muted uppercase">Criteria</th>
                 {vendors.map((v) => (
                   <th key={v.quotationId} className="px-5 py-4 text-left">
-                    <span className="block font-bold text-slate-900">{v.vendor}</span>
-                    <span className="block text-xs font-normal text-slate-400">{v.quotationId}</span>
+                    <span className="block font-bold text-fg">{v.vendor}</span>
+                    <span className="block text-xs font-normal text-fg-muted">{v.quotationId}</span>
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-border">
               {itemNames.map((name) => (
                 <tr key={name}>
-                  <td className="px-5 py-3 text-slate-600">{name}</td>
+                  <td className="px-5 py-3 text-fg-muted">{name}</td>
                   {vendors.map((v) => {
                     const price = v.prices?.[name];
                     return (
-                      <td key={v.quotationId} className="px-5 py-3 text-slate-800">
+                      <td key={v.quotationId} className="px-5 py-3 text-fg">
                         {price != null ? formatINR(price) : "—"}
                       </td>
                     );
@@ -124,11 +139,11 @@ function CompareInner() {
                 </tr>
               ))}
 
-              <tr className="bg-slate-50/60">
-                <td className="px-5 py-3.5 font-semibold text-slate-700">Total</td>
+              <tr className="bg-surface-2/60">
+                <td className="px-5 py-3.5 font-semibold text-fg">Total</td>
                 {vendors.map((v) => (
                   <td key={v.quotationId} className="px-5 py-3.5">
-                    <span className={cn("font-bold", v.amount === summary.lowestAmount ? "text-emerald-600" : "text-slate-900")}>
+                    <span className={cn("font-bold", v.amount === summary.lowestAmount ? "text-emerald-600" : "text-fg")}>
                       {formatINR(v.amount)}
                       {v.amount === summary.lowestAmount && v.amount > 0 && (
                         <span className="ml-2 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full"><Trophy size={11} /> Lowest</span>
@@ -139,10 +154,10 @@ function CompareInner() {
               </tr>
 
               <tr>
-                <td className="px-5 py-3.5 font-semibold text-slate-700">Delivery</td>
+                <td className="px-5 py-3.5 font-semibold text-fg">Delivery</td>
                 {vendors.map((v) => (
                   <td key={v.quotationId} className="px-5 py-3.5">
-                    <span className={cn("font-medium", v.deliveryDays === summary.fastestDeliveryDays ? "text-emerald-600" : "text-slate-700")}>
+                    <span className={cn("font-medium", v.deliveryDays === summary.fastestDeliveryDays ? "text-emerald-600" : "text-fg")}>
                       {v.deliveryDays} days
                       {v.deliveryDays === summary.fastestDeliveryDays && <Truck size={13} className="inline ml-1.5 -mt-0.5" />}
                     </span>
@@ -157,7 +172,7 @@ function CompareInner() {
                     {v.status === "Awarded" ? (
                       <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700"><Check size={16} /> Awarded</span>
                     ) : v.status === "Rejected" ? (
-                      <span className="text-sm text-slate-400">Rejected</span>
+                      <span className="text-sm text-fg-muted">Rejected</span>
                     ) : (
                       <button
                         onClick={() => award(v.quotationId)}
@@ -209,7 +224,7 @@ function CompareInner() {
 
 export default function ComparePage() {
   return (
-    <Suspense fallback={<div className="max-w-6xl mx-auto py-16 text-center text-slate-400">Loading…</div>}>
+    <Suspense fallback={<div className="max-w-6xl mx-auto py-16 text-center text-fg-muted">Loading…</div>}>
       <CompareInner />
     </Suspense>
   );

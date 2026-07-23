@@ -71,7 +71,7 @@ export function AiPanel({ title = "AI assistant", children, footer }) {
         </span>
         <span className="text-sm font-semibold text-violet-900">{title}</span>
       </div>
-      <div className="text-sm text-slate-700 leading-relaxed">{children}</div>
+      <div className="text-sm text-fg leading-relaxed">{children}</div>
       {footer && <div className="mt-3 pt-3 border-t border-violet-100">{footer}</div>}
     </div>
   );
@@ -92,5 +92,5 @@ export function levelClass(level = "") {
   if (/(low|pass|info)/.test(l)) return "bg-emerald-100 text-emerald-700";
   if (/(medium|review|warning)/.test(l)) return "bg-amber-100 text-amber-700";
   if (/(high|fail|critical)/.test(l)) return "bg-red-100 text-red-700";
-  return "bg-slate-100 text-slate-600";
+  return "bg-surface-2 text-fg-muted";
 }

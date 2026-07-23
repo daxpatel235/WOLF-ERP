@@ -12,13 +12,13 @@ function Stat({ icon: Icon, label, value, hint }) {
   return (
     <Card className="p-5">
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-brand">
           <Icon size={18} />
         </span>
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
-          <p className="text-lg font-bold text-slate-900 truncate">{value}</p>
-          {hint && <p className="text-xs text-slate-400 truncate">{hint}</p>}
+          <p className="text-xs font-medium uppercase tracking-wide text-fg-muted">{label}</p>
+          <p className="text-lg font-bold text-fg truncate">{value}</p>
+          {hint && <p className="text-xs text-fg-muted truncate">{hint}</p>}
         </div>
       </div>
     </Card>
@@ -45,7 +45,7 @@ export default function OrganizationOverviewPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 py-10 text-slate-500">
+      <div className="flex items-center gap-2 py-10 text-fg-muted">
         <Loader2 size={18} className="animate-spin" /> Loading workspace…
       </div>
     );
@@ -69,10 +69,10 @@ export default function OrganizationOverviewPage() {
 
       <Card className="p-6">
         <div className="flex items-center gap-2 mb-1">
-          <ShieldCheck size={18} className="text-blue-600" />
-          <h2 className="text-base font-bold text-slate-900">Your access</h2>
+          <ShieldCheck size={18} className="text-brand" />
+          <h2 className="text-base font-bold text-fg">Your access</h2>
         </div>
-        <p className="text-sm text-slate-500 mb-5">
+        <p className="text-sm text-fg-muted mb-5">
           {org.isOwner
             ? "You own this workspace, so you hold every permission and can delegate them to others."
             : `Signed in as ${user?.name}. These are the capabilities the owner has granted you.`}
@@ -90,10 +90,10 @@ export default function OrganizationOverviewPage() {
                   <XCircle size={16} className="mt-0.5 shrink-0 text-slate-300" />
                 )}
                 <div className="min-w-0">
-                  <p className={granted ? "text-sm font-medium text-slate-800" : "text-sm text-slate-400"}>
+                  <p className={granted ? "text-sm font-medium text-fg" : "text-sm text-fg-muted"}>
                     {meta.label}
                   </p>
-                  <p className="text-xs text-slate-400">{meta.hint}</p>
+                  <p className="text-xs text-fg-muted">{meta.hint}</p>
                 </div>
               </div>
             );
@@ -102,19 +102,19 @@ export default function OrganizationOverviewPage() {
       </Card>
 
       <Card className="p-6">
-        <h2 className="text-base font-bold text-slate-900 mb-1">Working as a team</h2>
-        <p className="text-sm text-slate-500">
+        <h2 className="text-base font-bold text-fg mb-1">Working as a team</h2>
+        <p className="text-sm text-fg-muted">
           Everything in this workspace — vendors, RFQs, quotations, purchase orders and invoices — is
           shared by every member. Invite teammates from{" "}
-          <Link href="/organization/members" className="font-semibold text-blue-600 hover:text-blue-700">
+          <Link href="/organization/members" className="font-semibold text-brand hover:text-brand-700">
             Members
           </Link>
           , tune what they can do under{" "}
-          <Link href="/organization/permissions" className="font-semibold text-blue-600 hover:text-blue-700">
+          <Link href="/organization/permissions" className="font-semibold text-brand hover:text-brand-700">
             Permissions
           </Link>
           , and talk it through in{" "}
-          <Link href="/organization/chat" className="font-semibold text-blue-600 hover:text-blue-700">
+          <Link href="/organization/chat" className="font-semibold text-brand hover:text-brand-700">
             Chat
           </Link>
           .

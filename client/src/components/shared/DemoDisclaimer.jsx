@@ -6,14 +6,14 @@ import { Info } from "lucide-react";
 export default function DemoDisclaimer({ className = "" }) {
   return (
     <div
-      className={`flex items-start gap-2.5 p-3 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-500 ${className}`}
+      className={`flex items-start gap-2.5 p-3 text-xs bg-surface-2 border border-border rounded-lg text-fg-muted ${className}`}
     >
       <Info size={15} className="mt-0.5 shrink-0 text-blue-500" />
       <p className="leading-relaxed">
-        <span className="font-semibold text-slate-600">Demo project.</span>{" "}
+        <span className="font-semibold text-fg-muted">Demo project.</span>{" "}
         Anything you add here is for demonstration only and is automatically
         cleared after{" "}
-        <span className="font-medium text-slate-600">30 days of inactivity</span>
+        <span className="font-medium text-fg-muted">30 days of inactivity</span>
         {" "}— your login always stays.
       </p>
     </div>

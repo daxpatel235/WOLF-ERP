@@ -23,16 +23,16 @@ export default function OrganizationLayout({ children }) {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+        <h1 className="text-2xl font-bold text-fg tracking-tight">
           {organization?.name || "Your workspace"}
         </h1>
-        <p className="text-slate-500 mt-1 text-sm">
+        <p className="text-fg-muted mt-1 text-sm">
           Manage the people, permissions and settings for this workspace.
         </p>
       </div>
 
       {/* Section tabs */}
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-200 mb-6">
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-border mb-6">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const active = isActive(tab);
@@ -43,8 +43,8 @@ export default function OrganizationLayout({ children }) {
               className={cn(
                 "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition",
                 active
-                  ? "border-blue-600 text-blue-700"
-                  : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+                  ? "border-blue-600 text-brand-700"
+                  : "border-transparent text-fg-muted hover:text-fg hover:border-border"
               )}
             >
               <Icon size={16} />

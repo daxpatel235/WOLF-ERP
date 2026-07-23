@@ -1,26 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Download, Printer, FileText, TrendingUp, Users, ShoppingCart, Receipt, Wallet, Loader2 } from "lucide-react";
-import { reportsApi, aiApi } from "@/lib/api";
+import { reportsApi, aiApi, purchaseOrdersApi } from "@/lib/api";
 import { useFetch } from "@/hooks/useFetch";
-import { formatINR, cn } from "@/lib/format";
+import { formatINR, formatCompactINR } from "@/lib/format";
 import { saveFile } from "@/lib/utils";
 import { downloadReportPdf } from "@/lib/pdf";
 import { PageHeader, Card, GhostButton } from "@/components/ui/kit";
+import { StatCard } from "@/components/ui/StatCard";
+import { ChartCard, BarChartX, AreaChartX, PieChartX, CHART_COLORS } from "@/components/ui/Chart";
 import { useAiEnabled, AiButton, AiPanel, AiThinking } from "@/components/ui/ai";
+import { useToast } from "@/components/ui/Toast";
+import { RoleGate } from "@/components/shared/RoleGate";
 
-const kpiColor = {
-  blue: "bg-blue-50 text-blue-600",
-  emerald: "bg-emerald-50 text-emerald-600",
-  amber: "bg-amber-50 text-amber-600",
-  violet: "bg-violet-50 text-violet-600",
-};
+// Statuses whose POs count as committed spend — mirrors the server's SPENDABLE.
+const SPENDABLE = ["Approved", "Sent", "Received"];
+
+// Roll POs up into the last `months` calendar buckets so the trend line always
+// spans a fixed window, including the months with no orders at all.
+function monthlySpend(pos, months = 6) {
+  const buckets = [];
+  const now = new Date();
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    buckets.push({
+      key: `${d.getFullYear()}-${d.getMonth()}`,
+      month: d.toLocaleDateString("en-IN", { month: "short" }),
+      amount: 0,
+      orders: 0,
+    });
+  }
+  const index = Object.fromEntries(buckets.map((b, i) => [b.key, i]));
+
+  pos.forEach((p) => {
+    if (!SPENDABLE.includes(p.status)) return;
+    const d = new Date(p.created || p.createdAt);
+    if (isNaN(d)) return;
+    const slot = index[`${d.getFullYear()}-${d.getMonth()}`];
+    if (slot === undefined) return;
+    buckets[slot].amount += p.amount || 0;
+    buckets[slot].orders += 1;
+  });
+
+  return buckets;
+}
 
 export default function ReportsPage() {
   const { data: summaryRes, loading } = useFetch(() => reportsApi.summary(), [], { key: "reports:summary" });
   const { data: catRes } = useFetch(() => reportsApi.spendByCategory(), [], { key: "reports:by-category" });
   const { data: vendorRes } = useFetch(() => reportsApi.spendByVendor(), [], { key: "reports:by-vendor" });
+  const { data: poRes } = useFetch(() => purchaseOrdersApi.list(), [], { key: "purchase-orders:all" });
+  const toast = useToast();
 
   const s = summaryRes?.data;
   const categories = catRes?.data || [];
@@ -28,6 +59,22 @@ export default function ReportsPage() {
   const topVendors = (vendorRes?.data || []).slice(0, 5);
 
   const totalSpend = categories.reduce((t, c) => t + c.amount, 0);
+
+  // ---- Chart series ----
+  const trend = useMemo(() => monthlySpend(poRes?.data || [], 6), [poRes]);
+  const categoryBars = useMemo(() => categories.slice(0, 7), [categories]);
+  const vendorShare = useMemo(
+    () => topVendors.map((v) => ({ label: v.vendor, amount: v.amount })),
+    [topVendors]
+  );
+  const spendTrendSpark = trend.map((t) => t.amount);
+  // Month-over-month movement on committed spend — the delta pill on the KPI.
+  const momDelta = (() => {
+    const prev = trend[trend.length - 2]?.amount || 0;
+    const curr = trend[trend.length - 1]?.amount || 0;
+    if (!prev) return undefined;
+    return Math.round(((curr - prev) / prev) * 100);
+  })();
 
   const kpis = [
     { label: "Total Spend", value: formatINR(totalSpend), icon: Wallet, color: "blue" },
@@ -68,7 +115,7 @@ export default function ReportsPage() {
       const { data } = await aiApi.reportSummary();
       setAiSummary(data.summary);
     } catch (e) {
-      alert(e.message || "Could not generate the summary.");
+      toast.error(e.message || "Could not generate the summary.");
     } finally {
       setAiBusy(false);
     }
@@ -80,13 +127,14 @@ export default function ReportsPage() {
     try {
       await downloadReportPdf({ kpis, categories, topVendors }, `wolf-report-${new Date().toISOString().slice(0, 10)}.pdf`);
     } catch (e) {
-      alert("Could not generate the PDF: " + (e?.message || e));
+      toast.error("Could not generate the PDF: " + (e?.message || e));
     } finally {
       setPdfBusy(false);
     }
   };
 
   return (
+    <RoleGate permission="canViewReports" title="Reports are restricted">
     <div className="max-w-7xl mx-auto">
       <PageHeader title="Reports" subtitle="Procurement spend analytics & insights">
         <GhostButton onClick={print} className="no-print"><Printer size={16} /> Print</GhostButton>
@@ -98,19 +146,19 @@ export default function ReportsPage() {
 
       <div>
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {kpis.map((k) => {
-          const Icon = k.icon;
-          return (
-            <Card key={k.label} className="p-5">
-              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3", kpiColor[k.color])}>
-                <Icon size={18} />
-              </div>
-              <p className="text-2xl font-bold text-slate-900">{loading ? "—" : k.value}</p>
-              <p className="text-sm text-slate-500">{k.label}</p>
-            </Card>
-          );
-        })}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 stagger">
+        {kpis.map((k) => (
+          <StatCard
+            key={k.label}
+            label={k.label}
+            value={k.value}
+            icon={k.icon}
+            tone={k.color}
+            loading={loading}
+            delta={k.label === "Total Spend" ? momDelta : undefined}
+            spark={k.label === "Total Spend" ? spendTrendSpark : undefined}
+          />
+        ))}
       </div>
 
       {/* AI executive summary */}
@@ -135,76 +183,147 @@ export default function ReportsPage() {
         </div>
       )}
 
+      {/* Spend trend (last 6 months) */}
+      <div className="mb-6">
+        {trend.some((t) => t.amount > 0) ? (
+          <ChartCard
+            title="Committed spend"
+            subtitle="Approved, sent & received POs over the last 6 months"
+            height={260}
+            action={
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-fg-muted">
+                <TrendingUp size={14} /> live
+              </span>
+            }
+          >
+            <AreaChartX
+              data={trend}
+              xKey="month"
+              dataKey="amount"
+              tickFormatter={formatCompactINR}
+              tooltipFormatter={(v) => [formatINR(v), "Spend"]}
+            />
+          </ChartCard>
+        ) : (
+          <Card className="p-6">
+            <h2 className="text-base font-bold text-fg mb-1">Committed spend</h2>
+            <div className="flex items-center justify-center gap-2 py-10 text-sm text-fg-muted">
+              {loading ? <><Loader2 size={18} className="animate-spin" /> Loading...</> : "No committed spend in the last 6 months."}
+            </div>
+          </Card>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Spend by category (bars) */}
-        <Card className="lg:col-span-2 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-base font-bold text-slate-900">Spend by category</h2>
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400"><TrendingUp size={14} /> live</span>
-          </div>
+        <div className="lg:col-span-2">
           {categories.length === 0 ? (
-            <div className="flex items-center justify-center gap-2 py-16 text-slate-400">
-              {loading ? <><Loader2 size={18} className="animate-spin" /> Loading...</> : "No spend recorded yet."}
-            </div>
+            <Card className="p-6 h-full">
+              <h2 className="text-base font-bold text-fg mb-6">Spend by category</h2>
+              <div className="flex items-center justify-center gap-2 py-16 text-fg-muted">
+                {loading ? <><Loader2 size={18} className="animate-spin" /> Loading...</> : "No spend recorded yet."}
+              </div>
+            </Card>
           ) : (
-            <div className="flex items-end justify-between gap-3 h-48">
-              {categories.slice(0, 7).map((c) => (
-                <div key={c.category} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="w-full flex items-end justify-center h-40">
-                    <div
-                      className="w-full max-w-[44px] rounded-t-lg bg-gradient-to-t from-blue-600 to-blue-400 transition-all hover:from-blue-700"
-                      style={{ height: `${Math.max(4, (c.amount / maxCat) * 100)}%` }}
-                      title={formatINR(c.amount)}
-                    />
-                  </div>
-                  <span className="text-[11px] text-slate-500 text-center leading-tight">{c.category}</span>
-                </div>
-              ))}
-            </div>
+            <ChartCard
+              title="Spend by category"
+              subtitle="Committed PO value grouped by vendor category"
+              height={300}
+              className="h-full"
+              action={
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-fg-muted">
+                  <TrendingUp size={14} /> live
+                </span>
+              }
+            >
+              <BarChartX
+                data={categoryBars}
+                xKey="category"
+                dataKey="amount"
+                tickFormatter={formatCompactINR}
+                tooltipFormatter={(v) => [formatINR(v), "Spend"]}
+              />
+            </ChartCard>
           )}
-        </Card>
+        </div>
 
-        {/* Spend by category (list with progress) */}
-        <Card className="p-6">
-          <h2 className="text-base font-bold text-slate-900 mb-6">Category breakdown</h2>
-          <div className="space-y-4">
-            {categories.length === 0 ? (
-              <p className="text-sm text-slate-400">No data yet.</p>
-            ) : (
-              categories.map((c) => (
-                <div key={c.category}>
-                  <div className="flex items-center justify-between text-sm mb-1.5">
-                    <span className="text-slate-600">{c.category}</span>
-                    <span className="font-semibold text-slate-900">{formatINR(c.amount)}</span>
-                  </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-600" style={{ width: `${(c.amount / maxCat) * 100}%` }} />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
+        {/* Vendor share (donut) */}
+        {vendorShare.length > 0 ? (
+          <ChartCard
+            title="Top vendor share"
+            subtitle="Share of committed spend"
+            height={300}
+          >
+            <PieChartX
+              data={vendorShare}
+              dataKey="amount"
+              nameKey="label"
+              centerLabel="total spend"
+              centerValue={formatCompactINR(totalSpend)}
+              tooltipFormatter={(v, n) => [formatINR(v), n]}
+              legend
+            />
+          </ChartCard>
+        ) : (
+          <Card className="p-6">
+            <h2 className="text-base font-bold text-fg mb-6">Top vendor share</h2>
+            <p className="text-sm text-fg-muted">No vendor spend yet.</p>
+          </Card>
+        )}
       </div>
+
+      {/* Category breakdown (exact figures beside the chart) */}
+      <Card className="p-6 mt-6">
+        <h2 className="text-base font-bold text-fg mb-6">Category breakdown</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+          {categories.length === 0 ? (
+            <p className="text-sm text-fg-muted">No data yet.</p>
+          ) : (
+            categories.map((c, i) => (
+              <div key={c.category}>
+                <div className="flex items-center justify-between text-sm mb-1.5">
+                  <span className="flex items-center gap-2 text-fg-muted">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
+                    />
+                    {c.category}
+                  </span>
+                  <span className="font-semibold text-fg tabular-nums">{formatINR(c.amount)}</span>
+                </div>
+                <div className="h-2 bg-surface-2 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${(c.amount / maxCat) * 100}%`,
+                      background: CHART_COLORS[i % CHART_COLORS.length],
+                    }}
+                  />
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
 
       {/* Top vendors */}
       <Card className="mt-6">
-        <h2 className="text-base font-bold text-slate-900 px-6 py-4 border-b border-slate-100">Top vendors by spend</h2>
-        <div className="divide-y divide-slate-100">
+        <h2 className="text-base font-bold text-fg px-6 py-4 border-b border-border">Top vendors by spend</h2>
+        <div className="divide-y divide-border">
           {topVendors.length === 0 ? (
-            <p className="px-6 py-8 text-sm text-slate-400 text-center">No vendor spend yet.</p>
+            <p className="px-6 py-8 text-sm text-fg-muted text-center">No vendor spend yet.</p>
           ) : (
             topVendors.map((v, i) => (
               <div key={v.vendorId || v.vendor} className="flex items-center gap-4 px-6 py-3.5">
-                <span className="w-6 text-sm font-bold text-slate-400">#{i + 1}</span>
+                <span className="w-6 text-sm font-bold text-fg-muted">#{i + 1}</span>
                 <span className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center font-semibold text-xs">
                   {(v.vendor || "").split(" ").map((w) => w[0]).slice(0, 2).join("")}
                 </span>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-slate-900">{v.vendor}</p>
-                  <p className="text-xs text-slate-400">{v.orders} orders</p>
+                  <p className="text-sm font-semibold text-fg">{v.vendor}</p>
+                  <p className="text-xs text-fg-muted">{v.orders} orders</p>
                 </div>
-                <span className="text-sm font-bold text-slate-900">{formatINR(v.amount)}</span>
+                <span className="text-sm font-bold text-fg">{formatINR(v.amount)}</span>
               </div>
             ))
           )}
@@ -212,5 +331,6 @@ export default function ReportsPage() {
       </Card>
       </div>
     </div>
+    </RoleGate>
   );
 }

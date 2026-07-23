@@ -15,7 +15,7 @@ export default function RfqDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto flex items-center justify-center gap-2 py-24 text-slate-400">
+      <div className="max-w-5xl mx-auto flex items-center justify-center gap-2 py-24 text-fg-muted">
         <Loader2 size={18} className="animate-spin" /> Loading RFQ...
       </div>
     );
@@ -24,7 +24,7 @@ export default function RfqDetailPage() {
   if (error || !data?.data) {
     return (
       <div className="max-w-3xl mx-auto">
-        <Link href="/rfqs" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-600 mb-4"><ArrowLeft size={16} /> Back to RFQs</Link>
+        <Link href="/rfqs" className="inline-flex items-center gap-2 text-sm font-medium text-fg-muted hover:text-brand mb-4"><ArrowLeft size={16} /> Back to RFQs</Link>
         <Card className="p-6"><EmptyState icon={FileText} title="RFQ not found" hint={error?.message || `No RFQ with id ${id}`} /></Card>
       </div>
     );
@@ -35,7 +35,7 @@ export default function RfqDetailPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <Link href="/rfqs" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-600 mb-4"><ArrowLeft size={16} /> Back to RFQs</Link>
+      <Link href="/rfqs" className="inline-flex items-center gap-2 text-sm font-medium text-fg-muted hover:text-brand mb-4"><ArrowLeft size={16} /> Back to RFQs</Link>
 
       <PageHeader title={rfq.title} subtitle={`${rfq.id} · ${rfq.category}`}>
         <Badge status={rfq.status} />
@@ -49,36 +49,36 @@ export default function RfqDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <h2 className="text-base font-bold text-slate-900 px-6 py-4 border-b border-slate-100">Requested items</h2>
-            <div className="divide-y divide-slate-100">
+            <h2 className="text-base font-bold text-fg px-6 py-4 border-b border-border">Requested items</h2>
+            <div className="divide-y divide-border">
               {rfq.items.map((it, i) => (
                 <div key={i} className="flex items-center justify-between px-6 py-3.5">
                   <span className="flex items-center gap-3">
-                    <Package size={16} className="text-slate-400" />
-                    <span className="text-sm font-medium text-slate-800">{it.name}</span>
+                    <Package size={16} className="text-fg-muted" />
+                    <span className="text-sm font-medium text-fg">{it.name}</span>
                   </span>
-                  <span className="text-sm text-slate-500">{it.qty} {it.unit}</span>
+                  <span className="text-sm text-fg-muted">{it.qty} {it.unit}</span>
                 </div>
               ))}
             </div>
           </Card>
 
           <Card>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-              <h2 className="text-base font-bold text-slate-900">Quotes received ({quotes.length})</h2>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="text-base font-bold text-fg">Quotes received ({quotes.length})</h2>
             </div>
             {quotes.length === 0 ? (
-              <div className="px-6 py-8 text-sm text-slate-400 text-center">No quotes submitted yet.</div>
+              <div className="px-6 py-8 text-sm text-fg-muted text-center">No quotes submitted yet.</div>
             ) : (
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-border">
                 {quotes.map((q) => (
-                  <Link key={q.id} href={`/quotations/${q.id}`} className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition">
+                  <Link key={q.id} href={`/quotations/${q.id}`} className="flex items-center justify-between px-6 py-4 hover:bg-surface-2 transition">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{q.vendor}</p>
-                      <p className="text-xs text-slate-400">Delivers in {q.deliveryDays} days · valid till {formatDate(q.validTill)}</p>
+                      <p className="text-sm font-semibold text-fg">{q.vendor}</p>
+                      <p className="text-xs text-fg-muted">Delivers in {q.deliveryDays} days · valid till {formatDate(q.validTill)}</p>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-sm font-bold text-slate-900">{formatINR(q.amount)}</span>
+                      <span className="text-sm font-bold text-fg">{formatINR(q.amount)}</span>
                       <Badge status={q.status} />
                     </div>
                   </Link>
@@ -93,7 +93,7 @@ export default function RfqDetailPage() {
           <Meta icon={Calendar} label="Response deadline" value={formatDate(rfq.due)} />
           <Meta icon={Users} label="Vendors invited" value={rfq.invited} />
           <Meta icon={FileText} label="Quotes received" value={rfq.received} />
-          <div className="pt-4 border-t border-slate-100">
+          <div className="pt-4 border-t border-border">
             <SendReminderButton rfqId={rfq.id} invited={rfq.invited} />
           </div>
         </Card>
@@ -131,7 +131,7 @@ function SendReminderButton({ rfqId, invited }) {
           <><Send size={16} /> Send reminder</>
         )}
       </PrimaryButton>
-      <p className="mt-2 text-xs text-slate-400 text-center">
+      <p className="mt-2 text-xs text-fg-muted text-center">
         {error ? <span className="text-red-600">{error}</span> : `Re-invites ${invited || 0} vendor(s) to quote.`}
       </p>
     </>
@@ -141,10 +141,10 @@ function SendReminderButton({ rfqId, invited }) {
 function Meta({ icon: Icon, label, value }) {
   return (
     <div className="flex items-center gap-3">
-      <Icon size={16} className="text-slate-400" />
+      <Icon size={16} className="text-fg-muted" />
       <div className="flex-1 flex items-center justify-between">
-        <span className="text-sm text-slate-500">{label}</span>
-        <span className="text-sm font-semibold text-slate-900">{value}</span>
+        <span className="text-sm text-fg-muted">{label}</span>
+        <span className="text-sm font-semibold text-fg">{value}</span>
       </div>
     </div>
   );

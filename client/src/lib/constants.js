@@ -1,8 +1,20 @@
 // App-wide constants shared across the client.
 
-// Base URL of the backend API. Override with NEXT_PUBLIC_API_URL in .env.local.
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+// Base URL of the backend API.
+//
+// This build is loaded live by the desktop app as well as served on the web, so
+// the desktop shell gets first say: it injects the configured backend before any
+// page script runs, which lets one installer point at the hosted deployment, a
+// self-hosted server, or a developer's localhost without a rebuild. In a browser
+// that global is absent and this falls through to the build-time env var.
+function resolveApiUrl() {
+  if (typeof window !== "undefined" && window.__WOLF_API_URL__) {
+    return String(window.__WOLF_API_URL__);
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+}
+
+export const API_URL = resolveApiUrl();
 
 // Storage keys (kept stable so existing sessions keep working).
 export const TOKEN_KEY = "wolf_token";

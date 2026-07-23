@@ -8,6 +8,8 @@ import { purchaseOrdersApi } from "@/lib/api";
 import { useFetch } from "@/hooks/useFetch";
 import { formatINR, formatDate } from "@/lib/format";
 import { PageHeader, Card, Badge, PrimaryButton, GhostButton, EmptyState } from "@/components/ui/kit";
+import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Modal";
 
 export default function PurchaseOrderDetailPage() {
   const { id } = useParams();
@@ -15,30 +17,53 @@ export default function PurchaseOrderDetailPage() {
   const po = data?.data;
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   useEffect(() => {
     if (po) setStatus(po.status);
   }, [po]);
 
   const submitForApproval = async () => {
+    const ok = await confirm({
+      title: "Submit for approval?",
+      message: "The purchase order will be locked for editing while an approver reviews it.",
+      confirmLabel: "Submit",
+    });
+    if (!ok) return;
+
     setBusy(true);
     try {
       const res = await purchaseOrdersApi.submit(id);
       setStatus(res.data.status);
+      toast.success("Sent for approval.");
     } catch (e) {
-      alert(e.message || "Could not submit.");
+      toast.error(e.message || "Could not submit.");
     } finally {
       setBusy(false);
     }
   };
 
   const setPoStatus = async (next) => {
+    // Cancelling is terminal — everything else is a routine step forward.
+    if (next === "Cancelled") {
+      const ok = await confirm({
+        title: "Cancel this purchase order?",
+        message: "This cannot be undone. The vendor will need a new PO to proceed.",
+        confirmLabel: "Cancel PO",
+        cancelLabel: "Keep it",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+
     setBusy(true);
     try {
       const res = await purchaseOrdersApi.setStatus(id, next);
       setStatus(res.data.status);
+      toast.success(`Purchase order marked ${next}.`);
     } catch (e) {
-      alert(e.message || "Could not update status.");
+      toast.error(e.message || "Could not update status.");
     } finally {
       setBusy(false);
     }
@@ -46,7 +71,7 @@ export default function PurchaseOrderDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto flex items-center justify-center gap-2 py-24 text-slate-400">
+      <div className="max-w-4xl mx-auto flex items-center justify-center gap-2 py-24 text-fg-muted">
         <Loader2 size={18} className="animate-spin" /> Loading purchase order...
       </div>
     );
@@ -55,7 +80,7 @@ export default function PurchaseOrderDetailPage() {
   if (error || !po) {
     return (
       <div className="max-w-3xl mx-auto">
-        <Link href="/purchase-orders" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-600 mb-4"><ArrowLeft size={16} /> Back</Link>
+        <Link href="/purchase-orders" className="inline-flex items-center gap-2 text-sm font-medium text-fg-muted hover:text-brand mb-4"><ArrowLeft size={16} /> Back</Link>
         <Card className="p-6"><EmptyState icon={ShoppingCart} title="PO not found" hint={error?.message || `No PO with id ${id}`} /></Card>
       </div>
     );
@@ -65,12 +90,12 @@ export default function PurchaseOrderDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <Link href="/purchase-orders" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-600 mb-4"><ArrowLeft size={16} /> Back to POs</Link>
+      <Link href="/purchase-orders" className="inline-flex items-center gap-2 text-sm font-medium text-fg-muted hover:text-brand mb-4"><ArrowLeft size={16} /> Back to POs</Link>
 
       <PageHeader title={po.id} subtitle={`Issued to ${po.vendor}`}>
         <Badge status={status} />
         <GhostButton onClick={() => window.print()}><Printer size={16} /> Print</GhostButton>
-        {busy && <Loader2 size={16} className="animate-spin text-slate-400" />}
+        {busy && <Loader2 size={16} className="animate-spin text-fg-muted" />}
         {status === "Draft" && (
           <PrimaryButton onClick={submitForApproval}><Clock size={16} /> Submit for approval</PrimaryButton>
         )}
@@ -90,31 +115,31 @@ export default function PurchaseOrderDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Card>
-            <h2 className="text-base font-bold text-slate-900 px-6 py-4 border-b border-slate-100">Items</h2>
+            <h2 className="text-base font-bold text-fg px-6 py-4 border-b border-border">Items</h2>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-semibold text-slate-500 uppercase border-b border-slate-100">
+                  <tr className="text-left text-xs font-semibold text-fg-muted uppercase border-b border-border">
                     <th className="px-6 py-3">Item</th>
                     <th className="px-6 py-3 text-right">Qty</th>
                     <th className="px-6 py-3 text-right">Unit price</th>
                     <th className="px-6 py-3 text-right">Amount</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-border">
                   {po.items.map((it, i) => (
                     <tr key={i}>
-                      <td className="px-6 py-3.5 font-medium text-slate-800">{it.name}</td>
-                      <td className="px-6 py-3.5 text-right text-slate-600">{it.qty}</td>
-                      <td className="px-6 py-3.5 text-right text-slate-600">{formatINR(it.unitPrice)}</td>
-                      <td className="px-6 py-3.5 text-right font-semibold text-slate-900">{formatINR(it.qty * it.unitPrice)}</td>
+                      <td className="px-6 py-3.5 font-medium text-fg">{it.name}</td>
+                      <td className="px-6 py-3.5 text-right text-fg-muted">{it.qty}</td>
+                      <td className="px-6 py-3.5 text-right text-fg-muted">{formatINR(it.unitPrice)}</td>
+                      <td className="px-6 py-3.5 text-right font-semibold text-fg">{formatINR(it.qty * it.unitPrice)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="border-t border-slate-200">
-                    <td colSpan={3} className="px-6 py-4 text-right font-semibold text-slate-700">Total</td>
-                    <td className="px-6 py-4 text-right text-lg font-bold text-blue-600">{formatINR(total)}</td>
+                  <tr className="border-t border-border">
+                    <td colSpan={3} className="px-6 py-4 text-right font-semibold text-fg">Total</td>
+                    <td className="px-6 py-4 text-right text-lg font-bold text-brand">{formatINR(total)}</td>
                   </tr>
                 </tfoot>
               </table>
@@ -135,11 +160,11 @@ export default function PurchaseOrderDetailPage() {
 function Meta({ icon: Icon, label, value, href }) {
   return (
     <div className="flex items-center gap-3">
-      <Icon size={16} className="text-slate-400" />
+      <Icon size={16} className="text-fg-muted" />
       <div className="flex-1 flex items-center justify-between">
-        <span className="text-sm text-slate-500">{label}</span>
-        {href ? <Link href={href} className="text-sm font-semibold text-blue-600 hover:underline">{value}</Link>
-          : <span className="text-sm font-semibold text-slate-900">{value}</span>}
+        <span className="text-sm text-fg-muted">{label}</span>
+        {href ? <Link href={href} className="text-sm font-semibold text-brand hover:underline">{value}</Link>
+          : <span className="text-sm font-semibold text-fg">{value}</span>}
       </div>
     </div>
   );

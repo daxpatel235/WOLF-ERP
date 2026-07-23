@@ -24,7 +24,7 @@ export default function PrivacyPage() {
         <p>
           This Privacy Policy explains what information Wolf ERP (“we”, “us”) collects
           when you use the app at{" "}
-          <span className="font-medium text-slate-800">wolf-erp.vercel.app</span>, how we
+          <span className="font-medium text-fg">wolf-erp.vercel.app</span>, how we
           use it, who we share it with, and the choices you have. By using the app you
           agree to this policy.
         </p>
@@ -133,7 +133,7 @@ export default function PrivacyPage() {
         />
         <p>
           To exercise any of these, contact us at{" "}
-          <a href="mailto:support@wolferp.in" className="font-medium text-blue-600 hover:text-blue-700">
+          <a href="mailto:support@wolferp.in" className="font-medium text-brand hover:text-brand-700">
             support@wolferp.in
           </a>
           .
@@ -159,11 +159,11 @@ export default function PrivacyPage() {
       <Section n="11" title="Contact">
         <p>
           Questions about this policy or your data? Email{" "}
-          <a href="mailto:support@wolferp.in" className="font-medium text-blue-600 hover:text-blue-700">
+          <a href="mailto:support@wolferp.in" className="font-medium text-brand hover:text-brand-700">
             support@wolferp.in
           </a>
           . See also our{" "}
-          <Link href="/terms" className="font-medium text-blue-600 hover:text-blue-700">
+          <Link href="/terms" className="font-medium text-brand hover:text-brand-700">
             Terms &amp; Conditions
           </Link>
           .

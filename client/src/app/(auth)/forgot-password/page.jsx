@@ -38,21 +38,21 @@ export default function ForgotPasswordPage() {
         <div className="w-14 h-14 mx-auto rounded-full bg-emerald-50 flex items-center justify-center mb-5">
           <CheckCircle2 size={28} className="text-emerald-500" />
         </div>
-        <h2 className="text-2xl font-bold text-slate-900">Check your inbox</h2>
-        <p className="text-slate-500 mt-2">
+        <h2 className="text-2xl font-bold text-fg">Check your inbox</h2>
+        <p className="text-fg-muted mt-2">
           We've sent a password reset link to{" "}
-          <span className="font-semibold text-slate-700">{email}</span>. It may
+          <span className="font-semibold text-fg">{email}</span>. It may
           take a minute to arrive.
         </p>
         <button
           onClick={() => setSent(false)}
-          className="text-sm font-semibold text-blue-600 hover:text-blue-700 mt-6"
+          className="text-sm font-semibold text-brand hover:text-brand-700 mt-6"
         >
           Didn't get it? Resend
         </button>
         <Link
           href="/login"
-          className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 mt-8"
+          className="flex items-center justify-center gap-2 text-sm font-semibold text-fg-muted hover:text-fg mt-8"
         >
           <ArrowLeft size={16} /> Back to sign in
         </Link>
@@ -64,8 +64,8 @@ export default function ForgotPasswordPage() {
   return (
     <div>
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Forgot password?</h2>
-        <p className="text-slate-500 mt-1">
+        <h2 className="text-2xl font-bold text-fg">Forgot password?</h2>
+        <p className="text-fg-muted mt-1">
           Enter your email and we'll send you a reset link.
         </p>
       </div>
@@ -79,11 +79,11 @@ export default function ForgotPasswordPage() {
 
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+          <label className="block text-sm font-medium text-fg mb-1.5">
             Email address
           </label>
           <div className="relative">
-            <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted" />
             <input
               type="email"
               value={email}
@@ -92,8 +92,8 @@ export default function ForgotPasswordPage() {
                 setError("");
               }}
               placeholder="you@company.com"
-              className={`w-full pl-10 pr-4 py-2.5 bg-white border rounded-lg text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 transition ${
-                error ? "border-red-300 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-100"
+              className={`w-full pl-10 pr-4 py-2.5 bg-surface border rounded-lg text-sm placeholder:text-fg-muted focus:outline-none focus:ring-2 transition ${
+                error ? "border-red-300 focus:ring-red-100" : "border-border focus:border-blue-500 focus:ring-blue-100"
               }`}
             />
           </div>
@@ -116,7 +116,7 @@ export default function ForgotPasswordPage() {
 
       <Link
         href="/login"
-        className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 hover:text-slate-900 mt-8"
+        className="flex items-center justify-center gap-2 text-sm font-semibold text-fg-muted hover:text-fg mt-8"
       >
         <ArrowLeft size={16} /> Back to sign in
       </Link>

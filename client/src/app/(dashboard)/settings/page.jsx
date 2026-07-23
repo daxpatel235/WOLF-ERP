@@ -5,6 +5,7 @@ import { User, Mail, Shield, Building2, Bell, LayoutGrid, LogOut } from "lucide-
 import { useAuth } from "@/hooks/useAuth";
 import { initialsOf } from "@/lib/utils";
 import { PageHeader, Card } from "@/components/ui/kit";
+import DesktopSettings from "@/components/shared/DesktopSettings";
 
 const PREFS_KEY = "wolf_prefs";
 const DEFAULT_PREFS = {
@@ -44,15 +45,15 @@ export default function SettingsPage() {
 
       {/* ---- Profile ---- */}
       <Card className="p-6 sm:p-8 mb-6">
-        <h2 className="text-base font-bold text-slate-900 mb-5">Profile</h2>
+        <h2 className="text-base font-bold text-fg mb-5">Profile</h2>
 
         <div className="flex items-center gap-4 mb-6">
           <span className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 text-white flex items-center justify-center font-bold text-xl">
             {initialsOf(user?.name)}
           </span>
           <div>
-            <p className="text-lg font-bold text-slate-900">{user?.name}</p>
-            <p className="text-sm text-slate-500 capitalize">{user?.role}</p>
+            <p className="text-lg font-bold text-fg">{user?.name}</p>
+            <p className="text-sm text-fg-muted capitalize">{user?.role}</p>
           </div>
         </div>
 
@@ -66,10 +67,10 @@ export default function SettingsPage() {
 
       {/* ---- Preferences ---- */}
       <Card className="p-6 sm:p-8 mb-6">
-        <h2 className="text-base font-bold text-slate-900 mb-1">Preferences</h2>
-        <p className="text-sm text-slate-500 mb-5">These are saved in your browser.</p>
+        <h2 className="text-base font-bold text-fg mb-1">Preferences</h2>
+        <p className="text-sm text-fg-muted mb-5">These are saved in your browser.</p>
 
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-border">
           <Toggle
             icon={Bell}
             label="Email notifications"
@@ -94,11 +95,14 @@ export default function SettingsPage() {
         </div>
       </Card>
 
+      {/* ---- Desktop app (renders only inside the Tauri shell) ---- */}
+      <DesktopSettings />
+
       {/* ---- Sign out ---- */}
       <Card className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-900">Sign out</p>
-          <p className="text-sm text-slate-500">End your session on this device.</p>
+          <p className="text-sm font-semibold text-fg">Sign out</p>
+          <p className="text-sm text-fg-muted">End your session on this device.</p>
         </div>
         <button
           onClick={handleLogout}
@@ -114,10 +118,10 @@ export default function SettingsPage() {
 function Info({ icon: Icon, label, value, capitalize }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon size={16} className="text-slate-400 mt-0.5" />
+      <Icon size={16} className="text-fg-muted mt-0.5" />
       <div>
-        <dt className="text-xs text-slate-400">{label}</dt>
-        <dd className={`text-slate-800 font-medium ${capitalize ? "capitalize" : ""}`}>{value}</dd>
+        <dt className="text-xs text-fg-muted">{label}</dt>
+        <dd className={`text-fg font-medium ${capitalize ? "capitalize" : ""}`}>{value}</dd>
       </div>
     </div>
   );
@@ -127,10 +131,10 @@ function Toggle({ icon: Icon, label, hint, on, onClick }) {
   return (
     <div className="flex items-center justify-between gap-4 py-4">
       <div className="flex items-start gap-3 min-w-0">
-        <Icon size={18} className="text-slate-400 mt-0.5 shrink-0" />
+        <Icon size={18} className="text-fg-muted mt-0.5 shrink-0" />
         <div className="min-w-0">
-          <p className="text-sm font-medium text-slate-800">{label}</p>
-          <p className="text-xs text-slate-500">{hint}</p>
+          <p className="text-sm font-medium text-fg">{label}</p>
+          <p className="text-xs text-fg-muted">{hint}</p>
         </div>
       </div>
       <button
@@ -143,7 +147,7 @@ function Toggle({ icon: Icon, label, hint, on, onClick }) {
         }`}
       >
         <span
-          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+          className={`inline-block h-5 w-5 transform rounded-full bg-surface shadow transition ${
             on ? "translate-x-5" : "translate-x-0.5"
           }`}
         />

@@ -1,7 +1,22 @@
 // Thin fetch wrapper around the Wolf ERP backend.
 // Attaches the JWT, parses JSON, and turns non-2xx responses into ApiError.
+//
+// In the desktop app this layer doubles as the offline snapshot: every
+// successful read is mirrored to disk through the Rust shell, and when the
+// server can't be reached the snapshot is served instead of an error. Writes
+// are never served from the snapshot — offline the app is strictly read-only,
+// because a queued mutation applied hours later against data that has since
+// moved on is worse than an honest refusal.
 
 import { API_URL, TOKEN_KEY } from "./constants";
+import {
+  isDesktop,
+  transport,
+  cacheGet,
+  cachePut,
+  markOnline,
+  markOffline,
+} from "./desktop";
 
 export class ApiError extends Error {
   constructor(message, status = 0, errors = null) {
@@ -9,6 +24,11 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.status = status;
     this.errors = errors; // field-level validation messages, if any
+    /** True when this failed because the machine is offline, not because the
+     *  request was bad. The UI uses it to explain rather than just complain. */
+    this.offline = false;
+    /** True when the payload came from the on-disk snapshot. */
+    this.stale = false;
   }
 }
 
@@ -31,6 +51,31 @@ function qs(params) {
 // spinner when the host is cold-starting.
 const REQUEST_TIMEOUT_MS = 35000;
 
+/**
+ * Serve a GET from the on-disk snapshot, or rethrow if there isn't one.
+ *
+ * Only reached after the network has already failed, so the choice is between
+ * stale data and nothing at all.
+ */
+async function serveFromSnapshot(path, networkError) {
+  const hit = await cacheGet(path);
+  if (!hit?.body) {
+    markOffline();
+    networkError.offline = true;
+    throw networkError;
+  }
+  try {
+    const data = JSON.parse(hit.body);
+    markOffline();
+    return data;
+  } catch {
+    // A truncated or corrupt entry is no better than a miss.
+    markOffline();
+    networkError.offline = true;
+    throw networkError;
+  }
+}
+
 async function request(path, { method = "GET", body, headers = {}, auth = true, _retried = false } = {}) {
   const opts = { method, headers: { ...headers } };
 
@@ -47,9 +92,15 @@ async function request(path, { method = "GET", body, headers = {}, auth = true, 
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   opts.signal = controller.signal;
 
+  // Reads are snapshotted; writes never are.
+  const snapshottable = isDesktop() && method === "GET";
+
   let res;
   try {
-    res = await fetch(`${API_URL}${path}`, opts);
+    // Browser fetch on the web and on the live desktop UI; the Rust HTTP client
+    // when running from the installer's bundled copy. See lib/desktop.js.
+    const send = await transport();
+    res = await send(`${API_URL}${path}`, opts);
   } catch (err) {
     // The first request after the host cold-starts (e.g. Render free tier spins
     // down when idle) often fails or aborts, then succeeds moments later. Retry
@@ -58,12 +109,24 @@ async function request(path, { method = "GET", body, headers = {}, auth = true, 
     if (method === "GET" && !_retried) {
       return request(path, { method, body, headers, auth, _retried: true });
     }
-    throw new ApiError(
-      err?.name === "AbortError"
+
+    const aborted = err?.name === "AbortError";
+    const failure = new ApiError(
+      aborted
         ? "The server is taking too long to respond — it may be waking up. Please try again."
         : `Cannot reach the server. Is the backend running at ${API_URL}?`,
       0
     );
+
+    if (snapshottable) return serveFromSnapshot(path, failure);
+
+    if (isDesktop()) {
+      markOffline();
+      failure.offline = true;
+      failure.message =
+        "You're offline, so this change can't be saved. Wolf ERP is read-only until the connection is back.";
+    }
+    throw failure;
   } finally {
     clearTimeout(timer);
   }
@@ -85,11 +148,22 @@ async function request(path, { method = "GET", body, headers = {}, auth = true, 
   }
 
   if (!res.ok) {
+    // The server answered, so we are online — this is a real application error
+    // (validation, permissions, a missing record) and the snapshot must not
+    // paper over it with data that contradicts what the server just said.
+    if (isDesktop()) markOnline();
     throw new ApiError(
       data?.message || `Request failed (${res.status})`,
       res.status,
       data?.errors || null
     );
+  }
+
+  if (isDesktop()) {
+    markOnline();
+    // Fire-and-forget: a slow disk must never hold up rendering, and a failed
+    // write only costs this one entry in the snapshot.
+    if (snapshottable && text) void cachePut(path, text);
   }
   return data;
 }

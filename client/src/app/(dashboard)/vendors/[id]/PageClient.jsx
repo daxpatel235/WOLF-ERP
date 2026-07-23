@@ -16,7 +16,7 @@ export default function VendorDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto flex items-center justify-center gap-2 py-24 text-slate-400">
+      <div className="max-w-5xl mx-auto flex items-center justify-center gap-2 py-24 text-fg-muted">
         <Loader2 size={18} className="animate-spin" /> Loading vendor...
       </div>
     );
@@ -25,7 +25,7 @@ export default function VendorDetailPage() {
   if (error || !data?.data) {
     return (
       <div className="max-w-3xl mx-auto">
-        <Link href="/vendors" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-600 mb-4">
+        <Link href="/vendors" className="inline-flex items-center gap-2 text-sm font-medium text-fg-muted hover:text-brand mb-4">
           <ArrowLeft size={16} /> Back to vendors
         </Link>
         <Card className="p-6">
@@ -41,7 +41,7 @@ export default function VendorDetailPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <Link href="/vendors" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-600 mb-4">
+      <Link href="/vendors" className="inline-flex items-center gap-2 text-sm font-medium text-fg-muted hover:text-brand mb-4">
         <ArrowLeft size={16} /> Back to vendors
       </Link>
 
@@ -65,7 +65,7 @@ export default function VendorDetailPage() {
             </span>
             <div>
               <Badge status={vendor.status} />
-              <p className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-slate-700">
+              <p className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-fg">
                 <Star size={14} className="text-amber-400 fill-amber-400" /> {vendor.rating} rating
               </p>
             </div>
@@ -143,28 +143,28 @@ function VendorRisk({ vendorId }) {
         <p className="text-sm text-red-600">{error}</p>
       ) : !risk ? (
         <div>
-          <p className="text-sm text-slate-500 mb-3">Score this vendor&apos;s reliability from their quotes, orders, invoices and rating.</p>
+          <p className="text-sm text-fg-muted mb-3">Score this vendor&apos;s reliability from their quotes, orders, invoices and rating.</p>
           <AiButton onClick={assess}>Assess risk</AiButton>
         </div>
       ) : (
         <div className="space-y-4">
-          <p className="text-sm text-slate-700 leading-relaxed">{risk.rationale}</p>
+          <p className="text-sm text-fg leading-relaxed">{risk.rationale}</p>
           {risk.signals?.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1.5">Signals</p>
+              <p className="text-xs font-semibold text-fg-muted uppercase mb-1.5">Signals</p>
               <ul className="space-y-1">
                 {risk.signals.map((s, i) => (
-                  <li key={i} className="text-sm text-slate-700 flex gap-2"><span className="text-violet-400">•</span>{s}</li>
+                  <li key={i} className="text-sm text-fg flex gap-2"><span className="text-violet-400">•</span>{s}</li>
                 ))}
               </ul>
             </div>
           )}
           {risk.recommendations?.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase mb-1.5">Recommendations</p>
+              <p className="text-xs font-semibold text-fg-muted uppercase mb-1.5">Recommendations</p>
               <ul className="space-y-1">
                 {risk.recommendations.map((r, i) => (
-                  <li key={i} className="text-sm text-slate-700 flex gap-2"><span className="text-emerald-500">✓</span>{r}</li>
+                  <li key={i} className="text-sm text-fg flex gap-2"><span className="text-emerald-500">✓</span>{r}</li>
                 ))}
               </ul>
             </div>
@@ -179,10 +179,10 @@ function VendorRisk({ vendorId }) {
 function Info({ icon: Icon, label, value }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon size={16} className="text-slate-400 mt-0.5" />
+      <Icon size={16} className="text-fg-muted mt-0.5" />
       <div>
-        <dt className="text-xs text-slate-400">{label}</dt>
-        <dd className="text-slate-800 font-medium">{value}</dd>
+        <dt className="text-xs text-fg-muted">{label}</dt>
+        <dd className="text-fg font-medium">{value}</dd>
       </div>
     </div>
   );
@@ -190,34 +190,34 @@ function Info({ icon: Icon, label, value }) {
 
 function Stat({ label, value, icon: Icon }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5">
-      <Icon size={18} className="text-blue-600 mb-3" />
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
-      <p className="text-sm text-slate-500">{label}</p>
+    <div className="bg-surface rounded-2xl border border-border p-5">
+      <Icon size={18} className="text-brand mb-3" />
+      <p className="text-2xl font-bold text-fg">{value}</p>
+      <p className="text-sm text-fg-muted">{label}</p>
     </div>
   );
 }
 
 function SectionTitle({ title }) {
-  return <h2 className="text-base font-bold text-slate-900 px-6 py-4 border-b border-slate-100">{title}</h2>;
+  return <h2 className="text-base font-bold text-fg px-6 py-4 border-b border-border">{title}</h2>;
 }
 
 function HistoryTable({ rows, type }) {
-  if (!rows.length) return <div className="px-6 py-8 text-sm text-slate-400 text-center">No records yet.</div>;
+  if (!rows.length) return <div className="px-6 py-8 text-sm text-fg-muted text-center">No records yet.</div>;
   return (
-    <div className="divide-y divide-slate-100">
+    <div className="divide-y divide-border">
       {rows.map((r) => (
         <Link
           key={r.id}
           href={type === "po" ? `/purchase-orders/${r.id}` : `/invoices/${r.id}`}
-          className="flex items-center justify-between px-6 py-3.5 hover:bg-slate-50 transition"
+          className="flex items-center justify-between px-6 py-3.5 hover:bg-surface-2 transition"
         >
           <div>
-            <p className="text-sm font-semibold text-slate-900">{r.id}</p>
-            <p className="text-xs text-slate-400">{formatDate(r.created || r.issued)}</p>
+            <p className="text-sm font-semibold text-fg">{r.id}</p>
+            <p className="text-xs text-fg-muted">{formatDate(r.created || r.issued)}</p>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm font-semibold text-slate-900">{formatINR(r.amount)}</span>
+            <span className="text-sm font-semibold text-fg">{formatINR(r.amount)}</span>
             <Badge status={r.status} />
           </div>
         </Link>

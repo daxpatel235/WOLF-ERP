@@ -9,9 +9,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, EmptyState } from "@/components/ui/kit";
 import { initialsOf, timeAgo } from "@/lib/utils";
 import { ASSIGNABLE_ROLES } from "@/lib/permissions";
+import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Modal";
 
 export default function MembersPage() {
   const { can, isOwner, user } = useAuth();
+  const toast = useToast();
+  const confirm = useConfirm();
   const canInvite = isOwner || can("canInviteMembers");
   const canManage = isOwner || can("canManageMembers");
 
@@ -65,21 +69,36 @@ export default function MembersPage() {
     try {
       await teamApi.revokeInvite(id);
       await load();
-    } catch (e) { setError(e.message); }
+      toast.success("Invitation revoked.");
+    } catch (e) {
+      setError(e.message);
+      toast.error(e.message || "Could not revoke that invitation.");
+    }
   };
 
   const remove = async (m) => {
-    if (!window.confirm(`Remove ${m.name} from this workspace? They will lose access to all of its data.`)) return;
+    const ok = await confirm({
+      title: `Remove ${m.name}?`,
+      message: "They will immediately lose access to this workspace and all of its data. This cannot be undone.",
+      confirmLabel: "Remove member",
+      danger: true,
+    });
+    if (!ok) return;
+
     try {
       await teamApi.removeMember(m.id);
       setNotice(`${m.name} was removed.`);
       await load();
-    } catch (e) { setError(e.message); }
+      toast.success(`${m.name} was removed.`);
+    } catch (e) {
+      setError(e.message);
+      toast.error(e.message || "Could not remove that member.");
+    }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 py-10 text-slate-500">
+      <div className="flex items-center gap-2 py-10 text-fg-muted">
         <Loader2 size={18} className="animate-spin" /> Loading members…
       </div>
     );
@@ -101,8 +120,8 @@ export default function MembersPage() {
       {/* Invite */}
       {canInvite && (
         <Card className="p-6">
-          <h2 className="text-base font-bold text-slate-900 mb-1">Invite a teammate</h2>
-          <p className="text-sm text-slate-500 mb-4">
+          <h2 className="text-base font-bold text-fg mb-1">Invite a teammate</h2>
+          <p className="text-sm text-fg-muted mb-4">
             They'll get an email with a link to create their account inside this workspace.
           </p>
 
@@ -114,20 +133,20 @@ export default function MembersPage() {
 
           <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-muted" />
               <input
                 type="email"
                 required
                 value={form.email}
                 onChange={(e) => { setForm({ ...form, email: e.target.value }); setInviteError(""); }}
                 placeholder="teammate@company.com"
-                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-100 transition"
+                className="w-full pl-10 pr-4 py-2.5 bg-surface border border-border rounded-lg text-sm placeholder:text-fg-muted focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-100 transition"
               />
             </div>
             <select
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
-              className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm capitalize focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-100"
+              className="px-3 py-2.5 bg-surface border border-border rounded-lg text-sm capitalize focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-100"
             >
               {ASSIGNABLE_ROLES.map((r) => (
                 <option key={r} value={r} className="capitalize">{r}</option>
@@ -148,15 +167,15 @@ export default function MembersPage() {
       {/* Pending invitations */}
       {canInvite && invites.length > 0 && (
         <Card className="overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100">
-            <h2 className="text-base font-bold text-slate-900">Pending invitations</h2>
+          <div className="px-6 py-4 border-b border-border">
+            <h2 className="text-base font-bold text-fg">Pending invitations</h2>
           </div>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-border">
             {invites.map((inv) => (
               <div key={inv.id} className="flex items-center justify-between px-6 py-3.5">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">{inv.email}</p>
-                  <p className="flex items-center gap-1.5 text-xs text-slate-400 mt-0.5">
+                  <p className="text-sm font-medium text-fg truncate">{inv.email}</p>
+                  <p className="flex items-center gap-1.5 text-xs text-fg-muted mt-0.5">
                     <Clock size={11} /> invited {timeAgo(inv.createdAt)} · joins as
                     <span className="capitalize">{inv.role}</span>
                   </p>
@@ -164,7 +183,7 @@ export default function MembersPage() {
                 {canManage && (
                   <button
                     onClick={() => revoke(inv.id)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-fg-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition"
                   >
                     <X size={14} /> Revoke
                   </button>
@@ -177,16 +196,16 @@ export default function MembersPage() {
 
       {/* Member directory */}
       <Card className="overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="text-base font-bold text-slate-900">
-            Members <span className="text-slate-400 font-medium">({members.length})</span>
+        <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+          <h2 className="text-base font-bold text-fg">
+            Members <span className="text-fg-muted font-medium">({members.length})</span>
           </h2>
         </div>
 
         {members.length === 0 ? (
           <EmptyState icon={UserPlus} title="No members yet" hint="Invite a teammate to get started." />
         ) : (
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-border">
             {members.map((m) => (
               <div key={m.id} className="flex items-center justify-between gap-4 px-6 py-4">
                 <div className="flex items-center gap-3 min-w-0">
@@ -194,7 +213,7 @@ export default function MembersPage() {
                     {initialsOf(m.name)}
                   </div>
                   <div className="min-w-0">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-fg">
                       <span className="truncate">{m.name}</span>
                       {m.isOwner && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-amber-50 text-amber-700 rounded-full">
@@ -202,23 +221,23 @@ export default function MembersPage() {
                         </span>
                       )}
                       {m.id === user?.id && (
-                        <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-slate-100 text-slate-500 rounded-full">
+                        <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-surface-2 text-fg-muted rounded-full">
                           You
                         </span>
                       )}
                     </p>
                     {/* The registered email, as required by the directory. */}
-                    <p className="text-xs text-slate-500 truncate">{m.email}</p>
+                    <p className="text-xs text-fg-muted truncate">{m.email}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="hidden sm:inline text-xs font-medium text-slate-500 capitalize">{m.role}</span>
+                  <span className="hidden sm:inline text-xs font-medium text-fg-muted capitalize">{m.role}</span>
                   {canManage && !m.isOwner && (
                     <button
                       onClick={() => remove(m)}
                       aria-label={`Remove ${m.name}`}
-                      className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                      className="p-2 text-fg-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition"
                     >
                       <Trash2 size={16} />
                     </button>

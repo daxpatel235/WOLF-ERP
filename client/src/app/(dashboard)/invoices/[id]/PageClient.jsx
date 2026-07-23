@@ -9,6 +9,8 @@ import { useFetch } from "@/hooks/useFetch";
 import { formatINR, formatDate, cn } from "@/lib/format";
 import { PageHeader, Card, Badge, PrimaryButton, GhostButton, EmptyState } from "@/components/ui/kit";
 import { useAiEnabled, AiButton, AiThinking, levelClass } from "@/components/ui/ai";
+import { useToast } from "@/components/ui/Toast";
+import { useConfirm } from "@/components/ui/Modal";
 
 const GST_RATE = 0.18;
 
@@ -18,18 +20,31 @@ export default function InvoiceDetailPage() {
   const inv = data?.data;
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   useEffect(() => {
     if (inv) setStatus(inv.status);
   }, [inv]);
 
   const markPaid = async () => {
+    // Recording a payment moves money in the books — always confirm the amount.
+    const ok = await confirm({
+      title: "Record full payment?",
+      message: `This marks ${inv?.id || "the invoice"} as paid in full${
+        inv?.amount ? ` (${formatINR(inv.amount)})` : ""
+      }.`,
+      confirmLabel: "Mark paid",
+    });
+    if (!ok) return;
+
     setBusy(true);
     try {
       const res = await invoicesApi.pay(id); // full payment
       setStatus(res.data.status);
+      toast.success("Payment recorded.");
     } catch (e) {
-      alert(e.message || "Could not record payment.");
+      toast.error(e.message || "Could not record payment.");
     } finally {
       setBusy(false);
     }
@@ -37,7 +52,7 @@ export default function InvoiceDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto flex items-center justify-center gap-2 py-24 text-slate-400">
+      <div className="max-w-4xl mx-auto flex items-center justify-center gap-2 py-24 text-fg-muted">
         <Loader2 size={18} className="animate-spin" /> Loading invoice...
       </div>
     );
@@ -46,7 +61,7 @@ export default function InvoiceDetailPage() {
   if (error || !inv) {
     return (
       <div className="max-w-3xl mx-auto">
-        <Link href="/invoices" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-600 mb-4"><ArrowLeft size={16} /> Back</Link>
+        <Link href="/invoices" className="inline-flex items-center gap-2 text-sm font-medium text-fg-muted hover:text-brand mb-4"><ArrowLeft size={16} /> Back</Link>
         <Card className="p-6"><EmptyState icon={Receipt} title="Invoice not found" hint={error?.message || `No invoice with id ${id}`} /></Card>
       </div>
     );
@@ -58,7 +73,7 @@ export default function InvoiceDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <Link href="/invoices" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-600 mb-4"><ArrowLeft size={16} /> Back to invoices</Link>
+      <Link href="/invoices" className="inline-flex items-center gap-2 text-sm font-medium text-fg-muted hover:text-brand mb-4"><ArrowLeft size={16} /> Back to invoices</Link>
 
       <PageHeader title={inv.id} subtitle={`Billed to ${inv.vendor}`}>
         <Badge status={status} />
@@ -74,33 +89,33 @@ export default function InvoiceDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>
-            <h2 className="text-base font-bold text-slate-900 px-6 py-4 border-b border-slate-100">Items</h2>
+            <h2 className="text-base font-bold text-fg px-6 py-4 border-b border-border">Items</h2>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs font-semibold text-slate-500 uppercase border-b border-slate-100">
+                  <tr className="text-left text-xs font-semibold text-fg-muted uppercase border-b border-border">
                     <th className="px-6 py-3">Item</th>
                     <th className="px-6 py-3 text-right">Qty</th>
                     <th className="px-6 py-3 text-right">Unit price</th>
                     <th className="px-6 py-3 text-right">Amount</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-border">
                   {inv.items.map((it, i) => (
                     <tr key={i}>
-                      <td className="px-6 py-3.5 font-medium text-slate-800">{it.name}</td>
-                      <td className="px-6 py-3.5 text-right text-slate-600">{it.qty}</td>
-                      <td className="px-6 py-3.5 text-right text-slate-600">{formatINR(it.unitPrice)}</td>
-                      <td className="px-6 py-3.5 text-right font-semibold text-slate-900">{formatINR(it.qty * it.unitPrice)}</td>
+                      <td className="px-6 py-3.5 font-medium text-fg">{it.name}</td>
+                      <td className="px-6 py-3.5 text-right text-fg-muted">{it.qty}</td>
+                      <td className="px-6 py-3.5 text-right text-fg-muted">{formatINR(it.unitPrice)}</td>
+                      <td className="px-6 py-3.5 text-right font-semibold text-fg">{formatINR(it.qty * it.unitPrice)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div className="px-6 py-4 border-t border-slate-100 space-y-2 text-sm">
-              <div className="flex justify-between text-slate-600"><span>Subtotal</span><span>{formatINR(subtotal)}</span></div>
-              <div className="flex justify-between text-slate-600"><span>GST (18%)</span><span>{formatINR(gst)}</span></div>
-              <div className="flex justify-between pt-2 border-t border-slate-200 font-bold"><span className="text-slate-700">Total</span><span className="text-lg text-blue-600">{formatINR(total)}</span></div>
+            <div className="px-6 py-4 border-t border-border space-y-2 text-sm">
+              <div className="flex justify-between text-fg-muted"><span>Subtotal</span><span>{formatINR(subtotal)}</span></div>
+              <div className="flex justify-between text-fg-muted"><span>GST (18%)</span><span>{formatINR(gst)}</span></div>
+              <div className="flex justify-between pt-2 border-t border-border font-bold"><span className="text-fg">Total</span><span className="text-lg text-brand">{formatINR(total)}</span></div>
             </div>
           </Card>
 
@@ -141,7 +156,7 @@ function InvoiceAudit({ invoiceId }) {
   };
 
   const sevClass = (s) =>
-    s === "critical" ? "text-red-700 bg-red-50" : s === "warning" ? "text-amber-700 bg-amber-50" : "text-slate-600 bg-slate-50";
+    s === "critical" ? "text-red-700 bg-red-50" : s === "warning" ? "text-amber-700 bg-amber-50" : "text-fg-muted bg-surface-2";
 
   return (
     <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white p-6">
@@ -162,12 +177,12 @@ function InvoiceAudit({ invoiceId }) {
         <p className="text-sm text-red-600">{error}</p>
       ) : !audit ? (
         <div>
-          <p className="text-sm text-slate-500 mb-3">Run a 3-way match against the linked PO and check for duplicate payments before you pay.</p>
+          <p className="text-sm text-fg-muted mb-3">Run a 3-way match against the linked PO and check for duplicate payments before you pay.</p>
           <AiButton onClick={run}>Audit invoice</AiButton>
         </div>
       ) : (
         <div className="space-y-3">
-          <p className="text-sm text-slate-700 leading-relaxed">{audit.summary}</p>
+          <p className="text-sm text-fg leading-relaxed">{audit.summary}</p>
           {audit.duplicateSuspect && (
             <p className="text-sm font-semibold text-red-700 bg-red-50 rounded-lg px-3 py-2">⚠ Possible duplicate payment — review before paying.</p>
           )}
@@ -190,11 +205,11 @@ function InvoiceAudit({ invoiceId }) {
 function Meta({ icon: Icon, label, value, href }) {
   return (
     <div className="flex items-center gap-3">
-      <Icon size={16} className="text-slate-400" />
+      <Icon size={16} className="text-fg-muted" />
       <div className="flex-1 flex items-center justify-between">
-        <span className="text-sm text-slate-500">{label}</span>
-        {href ? <Link href={href} className="text-sm font-semibold text-blue-600 hover:underline">{value}</Link>
-          : <span className="text-sm font-semibold text-slate-900">{value}</span>}
+        <span className="text-sm text-fg-muted">{label}</span>
+        {href ? <Link href={href} className="text-sm font-semibold text-brand hover:underline">{value}</Link>
+          : <span className="text-sm font-semibold text-fg">{value}</span>}
       </div>
     </div>
   );

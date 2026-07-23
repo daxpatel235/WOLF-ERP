@@ -24,14 +24,14 @@ export default function Navbar() {
   const showAuthed = !loading && user;
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-slate-100">
+    <header className="sticky top-0 z-50 bg-surface border-b border-border">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo + links */}
         <div className="flex items-center gap-10">
           <Link href="/" className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/wolf-w.png" alt="Wolf ERP" className="w-8 h-8 object-contain" />
-            <span className="text-2xl font-extrabold tracking-tight text-slate-900 italic">
+            <span className="text-2xl font-extrabold tracking-tight text-fg italic">
               Wolf
             </span>
           </Link>
@@ -41,7 +41,7 @@ export default function Navbar() {
               <li key={link.label}>
                 <a
                   href={link.href}
-                  className="text-[15px] font-medium text-slate-700 hover:text-blue-600 transition"
+                  className="text-[15px] font-medium text-fg hover:text-brand transition"
                 >
                   {link.label}
                 </a>
@@ -54,13 +54,13 @@ export default function Navbar() {
         <div className="hidden lg:flex items-center gap-4">
           <a
             href="mailto:support@wolferp.in"
-            className="text-slate-600 hover:text-blue-600 transition"
+            className="text-fg-muted hover:text-brand transition"
             aria-label="Email support"
             title="support@wolferp.in"
           >
             <Headphones size={22} />
           </a>
-          <span className="flex items-center gap-1 text-slate-500" title="Region: India">
+          <span className="flex items-center gap-1 text-fg-muted" title="Region: India">
             <span className="text-base leading-none">🇮🇳</span>
           </span>
           {showAuthed ? (
@@ -74,7 +74,7 @@ export default function Navbar() {
             <>
               <Link
                 href="/login"
-                className="px-5 py-2 text-sm font-semibold text-blue-600 border border-slate-200 rounded-lg hover:border-blue-300 hover:bg-blue-50/50 transition"
+                className="px-5 py-2 text-sm font-semibold text-brand border border-border rounded-lg hover:border-brand/40 hover:bg-blue-50/50 transition"
               >
                 Login
               </Link>
@@ -91,7 +91,7 @@ export default function Navbar() {
         {/* Mobile toggle */}
         <button
           onClick={() => setOpen(!open)}
-          className="lg:hidden text-slate-700"
+          className="lg:hidden text-fg"
           aria-label="Menu"
         >
           {open ? <X size={24} /> : <Menu size={24} />}
@@ -100,13 +100,13 @@ export default function Navbar() {
 
       {/* Mobile menu */}
       {open && (
-        <div className="lg:hidden border-t border-slate-100 bg-white px-4 py-4 space-y-1">
+        <div className="lg:hidden border-t border-border bg-surface px-4 py-4 space-y-1">
           {NAV_LINKS.map((link) => (
             <a
               key={link.label}
               href={link.href}
               onClick={() => setOpen(false)}
-              className="block px-3 py-2.5 rounded-lg text-base font-medium text-slate-700 hover:bg-slate-50"
+              className="block px-3 py-2.5 rounded-lg text-base font-medium text-fg hover:bg-surface-2"
             >
               {link.label}
             </a>
@@ -125,7 +125,7 @@ export default function Navbar() {
                 <Link
                   href="/login"
                   onClick={() => setOpen(false)}
-                  className="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-blue-600 border border-slate-200 rounded-lg"
+                  className="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-brand border border-border rounded-lg"
                 >
                   Login
                 </Link>

@@ -54,7 +54,7 @@ export default function NewVendorPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <Link href="/vendors" className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-blue-600 mb-4">
+      <Link href="/vendors" className="inline-flex items-center gap-2 text-sm font-medium text-fg-muted hover:text-brand mb-4">
         <ArrowLeft size={16} /> Back to vendors
       </Link>
 
@@ -70,7 +70,7 @@ export default function NewVendorPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {FIELDS.map((f) => (
               <div key={f.key} className={f.key === "name" ? "sm:col-span-2" : ""}>
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                <label className="block text-sm font-medium text-fg mb-1.5">
                   {f.label} {f.required && <span className="text-red-500">*</span>}
                 </label>
                 <input
@@ -78,8 +78,8 @@ export default function NewVendorPage() {
                   value={form[f.key] || ""}
                   onChange={(e) => set(f.key, e.target.value)}
                   placeholder={f.placeholder}
-                  className={`w-full px-3.5 py-2.5 bg-white border rounded-lg text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 transition ${
-                    errors[f.key] ? "border-red-300 focus:ring-red-100" : "border-slate-200 focus:border-blue-500 focus:ring-blue-100"
+                  className={`w-full px-3.5 py-2.5 bg-surface border rounded-lg text-sm placeholder:text-fg-muted focus:outline-none focus:ring-2 transition ${
+                    errors[f.key] ? "border-red-300 focus:ring-red-100" : "border-border focus:border-blue-500 focus:ring-blue-100"
                   }`}
                 />
                 {errors[f.key] && <p className="text-xs text-red-600 mt-1">{errors[f.key]}</p>}
@@ -87,18 +87,18 @@ export default function NewVendorPage() {
             ))}
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Category</label>
+              <label className="block text-sm font-medium text-fg mb-1.5">Category</label>
               <select
                 value={form.category}
                 onChange={(e) => set("category", e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
+                className="w-full px-3.5 py-2.5 bg-surface border border-border rounded-lg text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition"
               >
                 {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
               </select>
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
             <GhostButton href="/vendors">Cancel</GhostButton>
             <PrimaryButton type="submit">
               {saving ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : <><Check size={16} /> Save vendor</>}
